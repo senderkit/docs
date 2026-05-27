@@ -1,33 +1,31 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: "API Reference"
+description: "The SenderKit public REST API for sending and inspecting messages."
+icon: 'code'
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+This page introduces the SenderKit public REST API. The endpoint pages in this
+section are generated from the OpenAPI specification and cover dispatching
+messages, listing message history, and reading or rendering stored templates.
 
-## Welcome
+## Base URL
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
-
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+```
+https://senderkit.com/api
+```
 
 ## Authentication
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+All endpoints require a Bearer API key. The `sk_live_` / `sk_test_` prefix selects
+the environment; the prefix is a hint for humans, the secret is the full token.
 
-```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
+```bash
+Authorization: Bearer sk_live_xxx
 ```
+
+See [Authentication](/authentication) for how to create and manage keys.
+
+## Sends are asynchronous
+
+`POST /v1/send` enqueues the message and returns `202` with `status: "queued"`.
+Delivery happens out of band — poll `GET /v1/messages` to observe progress.
