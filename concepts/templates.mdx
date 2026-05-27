@@ -1,10 +1,73 @@
 ---
 title: "Templates"
-description: "Dashboard-editable message templates for email, SMS, and push."
+description: "Dashboard-editable message definitions your code references by slug."
 icon: 'file-lines'
 ---
 
-This page documents SenderKit templates — the named, dashboard-editable definitions
-of a message's subject, layout, and copy. It will cover how templates are created
-and edited, how each is bound to a channel, and how a send references a template by
-slug. Content to be expanded from the product source.
+Your transactional copy usually lives in the codebase — a React Email component, an
+MJML file, a string literal in a route handler. Every wording change is a pull
+request and a redeploy, with a developer in the loop for a comma. A **template**
+moves that copy out of the repo and into the SenderKit dashboard. Your code
+references the template by name; the subject, layout, and copy live in the
+dashboard, where anyone on the team can edit them without touching code.
+
+## What a template is
+
+A template is a named, channel-bound definition of a message. It carries:
+
+- A **slug** — the stable identifier your code sends to (`"welcome"`,
+  `"password-reset"`). Unique within your workspace.
+- A **channel** — `email`, `sms`, or `push`. Fixed when the template is created; a
+  template targets exactly one channel.
+- A **stack of versions** — the actual subject, layout, and copy live in
+  [versions](/concepts/versioning), not on the template itself. The template just
+  points at whichever version is currently published.
+- A **status** — `draft` until you publish a version, then `active`. Templates can
+  also be `archived`.
+
+<Note>
+  The template is identity and routing; the content lives in its versions. That
+  separation is what makes copy edits safe — every change is a new version you can
+  publish or roll back independently.
+</Note>
+
+## Referencing a template from a send
+
+Your code names the template by slug and supplies the recipient and
+[variables](/concepts/variables). It never names a version or a channel — the
+channel comes from the template, and SenderKit picks the version for you (see
+[Versioning](/concepts/versioning) and [Environments](/concepts/environments)).
+
+```ts
+await senderkit.send({
+  template: "welcome",
+  to: "user@example.com",
+  vars: { name: "Ada" },
+});
+```
+
+If the slug doesn't exist you get a `404`; in live mode, a template with no
+published version is also a `404` until you publish one.
+
+## Why this decouples copy from deploys
+
+You wire up `send({ template: "welcome" })` once. After that, changing the welcome
+email's wording is a dashboard edit and a publish — not a code change, not a
+redeploy, not your time. The send call is a stable contract; everything that can
+change without engineering (the words, the layout, the subject line) lives on the
+other side of that contract.
+
+<CardGroup cols={2}>
+  <Card title="Variables" icon="brackets-curly" href="/concepts/variables">
+    Fill the dynamic holes in a template at send time.
+  </Card>
+  <Card title="Versioning" icon="code-branch" href="/concepts/versioning">
+    How edits become versions and how a send picks one.
+  </Card>
+  <Card title="Channels & Providers" icon="tower-broadcast" href="/concepts/channels-and-providers">
+    What a template's channel means and who delivers it.
+  </Card>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    How a template reference turns into a delivered message.
+  </Card>
+</CardGroup>

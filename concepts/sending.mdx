@@ -1,10 +1,103 @@
 ---
 title: "Sending"
-description: "How SenderKit dispatches messages asynchronously."
+description: "How SenderKit accepts a send and delivers it asynchronously."
 icon: 'paper-plane'
 ---
 
-This page documents the SenderKit send model — submitting a template-based or raw
-send, the asynchronous `202 queued` response, and how delivery happens out of band
-with retries. It will also contrast template sends with inline raw content. Details
-to be expanded from the API and dispatch source.
+`send()` does not wait for your email to land. It's a fast, durable **enqueue**: the
+call returns as soon as SenderKit has accepted and recorded the message, and delivery
+happens in the background. Understanding that split — accept now, deliver later — is
+the key to using SenderKit correctly.
+
+## Synchronous accept, asynchronous delivery
+
+A send returns `202` almost immediately with a message `id`, a `status` of
+`"queued"`, and `livemode`. That response means **accepted**, not **delivered**.
+SenderKit then renders the template, dispatches to a
+[provider](/concepts/channels-and-providers), and updates the message as the provider
+reports back.
+
+```mermaid
+sequenceDiagram
+    participant App as Your app
+    participant API as SenderKit API
+    participant Worker as Dispatcher (background)
+    participant Provider
+
+    App->>API: send({ template, to, vars })
+    API->>API: create message (status: queued)
+    API-->>App: 202 { id, status: "queued", livemode }
+    Note over Worker: runs out of band
+    Worker->>Worker: render (status: rendered)
+    Worker->>Provider: deliver
+    Provider-->>Worker: accepted (status: sent)
+    Provider-->>API: webhook: delivered / failed / opted_out
+    API->>API: update final status
+```
+
+```ts
+const result = await senderkit.send({
+  template: "welcome",
+  to: "user@example.com",
+  vars: { name: "Ada" },
+});
+// { id: "msg_…", status: "queued", livemode: false }
+```
+
+To find out what happened next, watch the [message](/concepts/messages) — poll
+`GET /v1/messages` or tail the live stream.
+
+## Template sends and raw sends
+
+Most sends reference a stored template by slug. You can also send **raw** content
+inline — supply a `channel` and `content` instead of a `template` — for one-off
+messages that don't warrant a template. Raw content is interpolated with your `vars`
+only when you opt in; otherwise it's delivered verbatim. (A send specifies a
+`template` **or** `content`, never both.)
+
+## Idempotency
+
+Because the network is unreliable and the SDK retries transient failures, the same
+send can hit the API more than once. An **idempotency key** makes that safe: a repeat
+key within your workspace returns the original message instead of creating a duplicate.
+
+The SDK attaches an `Idempotency-Key` header automatically (it generates one if you
+don't pass `idempotencyKey`), so retries don't double-send out of the box. Pass your
+own key when the natural unit of work is something you can name:
+
+```ts
+await senderkit.send({
+  template: "welcome",
+  to: email,
+  vars: { name },
+  idempotencyKey: `welcome:${email}`,
+});
+```
+
+<Tip>
+  Use a stable, meaningful key for sends that must happen at most once — e.g.
+  `receipt:${orderId}`. Then a retry, a duplicate webhook, or a double form submit
+  collapses to a single message.
+</Tip>
+
+## Ordering and batching
+
+Delivery is concurrent and out of band, so **send order is not delivery order** —
+don't depend on two sends arriving in sequence. To send many messages at once, the
+SDK's `sendBatch` fans out with bounded concurrency; each item becomes its own
+message with its own idempotency key.
+
+<Warning>
+  A `202` / `"queued"` response means SenderKit accepted the message — not that it was
+  delivered. Treat delivery as confirmed only when the
+  [message](/concepts/messages) reaches a terminal status.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    Track a send from queued to delivered.
+  </Card>
+  <Card title="TypeScript SDK" icon="js" href="/sdks/typescript">
+    `send`, `sendRaw`, and `sendBatch` in detail.
+  </Card>
+</CardGroup>
