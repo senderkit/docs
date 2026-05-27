@@ -1,0 +1,18 @@
+# IDE
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
+
+# Mintlify
+.mintlify/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+*.log

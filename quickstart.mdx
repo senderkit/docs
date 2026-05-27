@@ -1,81 +1,101 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Send your first transactional message with SenderKit."
 icon: 'rocket'
 ---
 
-## Get started in three steps
+Send a templated message from a Node.js or TypeScript app. The `welcome` template —
+its subject, layout, and copy — lives in the SenderKit dashboard, so you wire up the
+send call once and edit the wording later without a redeploy.
 
-Get your documentation site running locally and make your first customization.
+<Steps>
+  <Step title="Install the SDK">
+    <CodeGroup>
+      ```bash npm
+      npm install @senderkit/sdk
+      ```
 
-### Step 1: Set up your local environment
+      ```bash pnpm
+      pnpm add @senderkit/sdk
+      ```
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+      ```bash yarn
+      yarn add @senderkit/sdk
+      ```
 
-### Step 2: Deploy your changes
+      ```bash bun
+      bun add @senderkit/sdk
+      ```
+    </CodeGroup>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    The core SDK has zero runtime dependencies and uses native `fetch` (Node.js 18+).
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Get an API key">
+    Create a key in the [dashboard](https://senderkit.com/app/dashboard). Use an
+    `sk_test_` key while you're wiring things up — test keys never call your
+    providers — and switch to `sk_live_` to send for real. The plaintext is shown
+    once at creation, so copy it then.
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Set the environment variable">
+    ```bash
+    export SENDERKIT_API_KEY="sk_test_..."
+    ```
 
-### Step 3: Go live
+    The SDK doesn't read this automatically — you pass it to the constructor (next
+    step). Storing it in the environment keeps the secret out of your source.
+  </Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  <Step title="Send a message">
+    <CodeGroup>
+      ```ts Node.js
+      import { SenderKit } from "@senderkit/sdk";
 
-## Next steps
+      const senderkit = new SenderKit({ apiKey: process.env.SENDERKIT_API_KEY! });
 
-Now that you have your docs running, explore these key features:
+      const result = await senderkit.send({
+        template: "welcome",
+        to: "user@example.com",
+        vars: { name: "Ada" },
+      });
 
-<CardGroup cols={2}>
+      console.log(result); // { id: "msg_…", status: "queued", livemode: false }
+      ```
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+      ```ts Next.js (route handler)
+      import { NextResponse } from "next/server";
+      import { SenderKit } from "@senderkit/sdk";
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+      const senderkit = new SenderKit({ apiKey: process.env.SENDERKIT_API_KEY! });
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+      export async function POST(req: Request) {
+        const { email, name } = await req.json();
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+        const result = await senderkit.send({
+          template: "welcome",
+          to: email,
+          vars: { name: name ?? "there" },
+          idempotencyKey: `welcome:${email}`,
+        });
 
-</CardGroup>
+        return NextResponse.json(result, { status: 202 });
+      }
+      ```
+    </CodeGroup>
+
+    `vars` holds your template variables (`{{name}}`, and so on). Sends are
+    asynchronous: the call returns `status: "queued"` once SenderKit accepts the
+    message, and delivery happens out of band.
+  </Step>
+
+  <Step title="What to read next">
+    - [Authentication](/authentication) — key types, scopes, and the curl contract.
+    - [Messages](/concepts/messages) — track delivery and status after a send.
+  </Step>
+</Steps>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Prefer the terminal or an AI assistant? `@senderkit/cli` runs the same operations
+  from your shell, and the [MCP server](/mcp/overview) exposes them to AI agents.
 </Note>

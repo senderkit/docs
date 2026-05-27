@@ -1,0 +1,71 @@
+---
+title: "Authentication"
+description: "Create API keys and authenticate requests to SenderKit."
+icon: 'key'
+---
+
+Every request to the SenderKit API authenticates with an API key passed as a
+Bearer token:
+
+```
+Authorization: Bearer sk_live_...
+```
+
+## Getting a key
+
+Create keys in the [dashboard](https://senderkit.com/app/dashboard). The plaintext
+secret is shown once at creation and stored only as a SHA-256 hash afterward — copy
+it then, because it can't be retrieved later. The SDK and CLI read the key from the
+`SENDERKIT_API_KEY` environment variable.
+
+## Live and test keys
+
+Keys carry an `sk_live_` or `sk_test_` prefix that selects the environment:
+
+- **`sk_live_`** delivers real notifications through your connected providers.
+- **`sk_test_`** never calls providers — use it for local development and CI.
+
+The prefix is only a hint for humans; the secret is the full token. SenderKit
+derives live-versus-test mode from the prefix server-side, so the same code path
+behaves correctly just by swapping the key.
+
+## Scopes and revocation
+
+Keys can be scoped (the default scope is `send:*`). To retire a key, revoke it in
+the dashboard — a revoked or otherwise invalid key returns `401 Unauthorized`.
+There's no in-place rotation: to rotate, create a new key, deploy it, then revoke
+the old one.
+
+## Authenticating a request
+
+<CodeGroup>
+  ```bash curl
+  curl https://senderkit.com/api/v1/send \
+    -H "Authorization: Bearer $SENDERKIT_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "template": "welcome",
+      "to": "user@example.com",
+      "vars": { "name": "Ada" }
+    }'
+  ```
+
+  ```ts SDK (from env var)
+  import { SenderKit } from "@senderkit/sdk";
+
+  // Reads the key you pass in from the environment.
+  const senderkit = new SenderKit({ apiKey: process.env.SENDERKIT_API_KEY! });
+  ```
+
+  ```ts SDK (explicit key)
+  import { SenderKit } from "@senderkit/sdk";
+
+  const senderkit = new SenderKit({ apiKey: "sk_live_..." });
+  ```
+</CodeGroup>
+
+<Warning>
+  Treat API keys as secrets. Keep them server-side only — never ship them in
+  client-side bundles or commit them to source control. Store them in your
+  platform's environment variables or a secrets manager.
+</Warning>
