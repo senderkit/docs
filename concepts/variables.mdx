@@ -1,10 +1,105 @@
 ---
 title: "Variables"
-description: "Typed variables interpolated into templates at send time."
+description: "Typed values interpolated into templates at send time."
 icon: 'brackets-curly'
 ---
 
-This page documents typed template variables — defining the shape of values like
-`{{name}}` or `{{dashboardUrl}}`, including nested objects and arrays, and how they
-are validated and interpolated before a send goes out. Specifics to be filled in
-from the variable definitions in the product source.
+A template is mostly fixed text with a few holes — a name, a link, an amount. **Variables**
+are how you fill those holes at send time. The template owns the wording; your send
+call owns the data.
+
+## The syntax
+
+SenderKit interpolates templates with [Mustache](https://mustache.github.io/). You
+reference a variable with double braces, and nested values with a dotted path:
+
+```text Template copy
+Hi {{first_name}},
+
+Your reset link is ready. It expires in {{expiry_minutes}} minutes:
+{{reset_url}}
+```
+
+```ts Your send
+await senderkit.send({
+  template: "password-reset",
+  to: "user@example.com",
+  vars: {
+    first_name: "Ada",
+    reset_url: "https://app.example.com/reset?t=abc123",
+    expiry_minutes: 30,
+  },
+});
+```
+
+## Typed variables
+
+Each template version **declares** the variables it expects, with a type
+(`string`, `array`, `object`, or `boolean`), an optional description, an example
+value, and whether it's required. The editor uses these declarations to preview the
+template with realistic sample data, and to help non-engineers understand what each
+hole needs.
+
+<Note>
+  Declarations describe and document the variables a template uses — they power
+  previews and the editor experience. At send time, interpolation is driven by the
+  `vars` you actually pass.
+</Note>
+
+## Missing variables
+
+If a template references a variable you don't supply, it renders as an **empty
+string** — interpolation doesn't fail, and the send still goes out. That keeps a
+forgotten optional field from blocking delivery, but it also means a typo in a
+variable name fails silently.
+
+<Tip>
+  Catch missing variables before you send. The render endpoint
+  (`POST /v1/templates/{slug}/render`) returns the rendered output plus a `missing`
+  array listing every variable the template referenced but you didn't provide. See
+  the [API Reference](/api-reference/introduction).
+</Tip>
+
+## Escaping
+
+For email, values interpolated into the **HTML body are HTML-escaped** by default,
+so a variable can't inject markup. Subjects, preheaders, plain-text bodies, and all
+SMS and push content are not HTML, so they pass through unescaped.
+
+When you genuinely need a variable to contain trusted HTML, opt out of escaping with
+the triple-brace / ampersand form:
+
+```text
+{{&promo_banner_html}}
+```
+
+<Warning>
+  `{{&var}}` injects the value as raw HTML. Only use it for content you control —
+  never for anything a user can influence — or you open an HTML-injection hole.
+</Warning>
+
+## Conditionals and loops
+
+Mustache sections let a template show a block only when a value is present, or repeat
+a block over a list:
+
+```text
+{{#has_trial}}Your trial ends on {{trial_end}}.{{/has_trial}}
+{{^has_trial}}Thanks for being a paid customer.{{/has_trial}}
+
+{{#line_items}}
+- {{name}}: {{amount}}
+{{/line_items}}
+```
+
+In the email editor these map to **repeat** and **show-if** blocks, so non-engineers
+can build conditional and repeating content visually without writing Mustache.
+
+<CardGroup cols={2}>
+  <Card title="Templates" icon="file-lines" href="/concepts/templates">
+    Where variables are declared and used.
+  </Card>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    How `vars` travel with a send.
+  </Card>
+</CardGroup>

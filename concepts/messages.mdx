@@ -1,10 +1,88 @@
 ---
 title: "Messages"
-description: "Delivery history, statuses, and message tracking."
+description: "The durable record of every send, its status, and its history."
 icon: 'list-check'
 ---
 
-This page documents SenderKit messages — the record of every send, its lifecycle
-statuses (queued through delivered or failed), and how to list and filter message
-history. It will also cover live tailing of recent messages. Specifics to be
-expanded from the messages service and API.
+Every send creates a **message** — the record of truth for what SenderKit did with
+it. A message captures the recipient, the channel, the variables, which provider
+handled it, and a timeline of everything that happened. Because [sending is
+asynchronous](/concepts/sending), the message is how you find out whether delivery
+actually succeeded.
+
+## The message lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued
+    queued --> rendered
+    rendered --> sent
+    sent --> delivered
+    sent --> failed
+    sent --> opted_out
+    queued --> failed
+    rendered --> failed
+```
+
+| Status | What it means | What triggers it |
+| --- | --- | --- |
+| `queued` | Accepted and recorded | The `send()` call |
+| `rendered` | Template + variables resolved | Background dispatcher |
+| `sent` | A provider accepted the message | Successful provider dispatch |
+| `delivered` | The provider confirmed delivery | Provider webhook |
+| `failed` | Delivery failed | Provider webhook, a config error, or retries exhausted |
+| `opted_out` | Recipient is unsubscribed/suppressed | Provider webhook |
+
+<Note>
+  The status enum also includes `dispatched`. In the current pipeline a message moves
+  `queued → rendered → sent`, and the moment a provider accepts it is recorded as a
+  `dispatched` **event on the message's timeline** while the status itself becomes
+  `sent`. Read `sent` as "handed to the provider."
+</Note>
+
+In [test mode](/concepts/environments), SenderKit synthesizes this lifecycle
+(`rendered → sent → delivered`) without calling a provider, so your logs look the same
+as live without anything leaving the building.
+
+## Querying messages
+
+List messages newest-first with cursor pagination, and filter by `status`, `channel`,
+`template`, or your own `metadata`:
+
+```ts
+const { data, nextCursor } = await senderkit.messages.list({
+  status: "failed",
+  channel: "email",
+});
+```
+
+The API also supports a live tail (a Server-Sent Events stream) for watching sends in
+real time. See the [API Reference](/api-reference/introduction), the
+[TypeScript SDK](/sdks/typescript), and the [CLI](/cli/messages) for the full surface.
+
+<Tip>
+  Attach `metadata` (e.g. `{ userId: "usr_123", orderId: "ord_9" }`) when you send.
+  It's indexed, so you can later filter messages down to a single user or order.
+</Tip>
+
+## Retention
+
+Messages are retained for a limited window and then deleted:
+
+- **Free plan** — 3 days
+- **Pro plan** — 14 days
+
+<Warning>
+  Don't treat SenderKit as your long-term audit log. If you need history beyond your
+  plan's retention window, export or persist messages in your own system, and use
+  `metadata` to correlate them with your records.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    How a message gets created and dispatched.
+  </Card>
+  <Card title="Channels & Providers" icon="tower-broadcast" href="/concepts/channels-and-providers">
+    Who delivered the message and how failures surface.
+  </Card>
+</CardGroup>

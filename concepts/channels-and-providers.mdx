@@ -1,10 +1,64 @@
 ---
 title: "Channels & Providers"
-description: "Send email, SMS, and push through your own provider connections."
+description: "Email, SMS, and push delivered through your own provider connections."
 icon: 'tower-broadcast'
 ---
 
-This page documents SenderKit's channels (email, SMS, push) and the provider
-connections that deliver them. It will describe how one API call dispatches through
-your own provider behind a single interface, and which providers are supported per
-channel. Provider specifics to be confirmed from the product source.
+Delivery in SenderKit has two layers. A **channel** is the kind of message — email,
+SMS, or push. A **provider** is the service that actually delivers it — Postmark,
+Twilio, APNs, and so on. You build templates against channels; SenderKit routes each
+send to the right provider behind a single interface.
+
+## Channels
+
+SenderKit supports three channels:
+
+- **`email`**
+- **`sms`**
+- **`push`**
+
+A [template](/concepts/templates) targets exactly one channel, fixed when it's
+created. A send goes out on that channel; for [raw sends](/concepts/sending) you name
+the channel explicitly.
+
+## Providers
+
+You connect your own provider accounts in the dashboard. SenderKit supports:
+
+| Channel | Providers |
+| --- | --- |
+| `email` | Postmark, SendGrid, Amazon SES, Mailgun, SparkPost |
+| `sms` | Twilio, Amazon SNS, Vonage, MessageBird |
+| `push` | APNs, FCM, Expo |
+
+Credentials are encrypted at rest. Each channel has one **default** connection, and a
+template can override that default to use a specific connection.
+
+## How a send picks a provider
+
+You don't choose a provider per send — SenderKit resolves one for you:
+
+1. The template's **provider override**, if it has one.
+2. Otherwise, the **workspace default** for the channel.
+3. If neither is configured (in live mode), the send fails with
+   `provider_not_configured`.
+
+<Note>
+  Provider **failover is not available yet** — it's planned. Today, if the chosen
+  provider rejects a message, SenderKit retries the same connection a few times and
+  then marks the message [`failed`](/concepts/messages). It does not automatically
+  fall back to a different provider.
+</Note>
+
+In [test mode](/concepts/environments), no provider is called at all — SenderKit
+short-circuits delivery, so an unconfigured channel still "sends" fine while you're
+developing.
+
+<CardGroup cols={2}>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    How a send is dispatched to a provider.
+  </Card>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    Which provider handled a message, and what happened.
+  </Card>
+</CardGroup>

@@ -1,10 +1,57 @@
 ---
 title: "AI Authoring"
-description: "Generate template subject, layout, and copy from a prompt."
+description: "Draft a template's subject, layout, and copy from a plain-language prompt."
 icon: 'wand-magic-sparkles'
 ---
 
-This page documents AI-assisted template authoring — generating a template's
-subject, layout, and copy from a plain-language prompt, then refining the result in
-the editor. The exact authoring flow and capabilities will be filled in from the
-product source.
+Starting a template from a blank editor is the slow part. **AI authoring** lets you
+describe the message you want in plain language and get back a complete first draft —
+subject, layout, copy, and a typed list of the [variables](/concepts/variables) it
+uses — which you then refine in the editor before publishing.
+
+## What it produces
+
+You give it a channel and a brief ("a friendly welcome email for a new SaaS signup
+with a button to set up their workspace"), and it drafts channel-appropriate content:
+
+- **Email** — a subject line, an optional preheader, and a structured body of
+  headings, paragraphs, buttons, lists, and dividers.
+- **SMS** — a single message body, kept within SMS length budgets.
+- **Push** — a short title and body.
+
+Alongside the content it declares the [variables](/concepts/variables) it used —
+snake_case names, types, descriptions, and example values — and reuses variables
+you've already defined when they fit, so you're not left wiring up placeholders by
+hand.
+
+## Where it fits in the workflow
+
+AI authoring is a **dashboard authoring aid**. You use it in the template editor when
+composing a new template or reworking an existing one. The draft it generates is a new
+template [version](/concepts/versioning) — nothing goes live until you review it and
+**publish**.
+
+<Note>
+  AI authoring is a dashboard feature. It is **not** exposed through the SDK, CLI, or
+  public API — those surfaces send and read templates; authoring with AI happens in
+  the dashboard editor and runs on OpenAI (gpt-5.5).
+</Note>
+
+## What to expect
+
+Treat the output as a strong first draft, not a finished template:
+
+- **Review the copy** — it's a starting point; tighten it to your voice.
+- **Check the variables** — confirm the names and types match the data you'll actually
+  pass at send time.
+- **Then publish** — the draft only affects real sends once you publish it as the
+  current version.
+
+<CardGroup cols={2}>
+  <Card title="Templates" icon="file-lines" href="/concepts/templates">
+    Where authored drafts live.
+  </Card>
+  <Card title="Versioning" icon="code-branch" href="/concepts/versioning">
+    The draft is a version — publish it to go live.
+  </Card>
+</CardGroup>
