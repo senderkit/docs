@@ -1,0 +1,239 @@
+---
+title: "Send a welcome email on signup"
+sidebarTitle: "Welcome emails"
+description: "Fire a branded welcome email automatically when a user signs up with Clerk or Auth.js."
+icon: 'hand-wave'
+---
+
+By the end of this guide, a welcome email sends automatically the moment a new user
+signs up — triggered by your auth provider, rendered from a dashboard template, with
+no copy living in your codebase.
+
+This is the email your auth provider *doesn't* send for you. Clerk and Auth.js handle
+the auth-related mail — verification codes, magic links, password resets — but neither
+sends a product welcome. That gap is yours to fill, and it's a one-line `send()` from a
+webhook or event handler.
+
+<Note>
+  **You'll need:** a [SenderKit account](https://senderkit.com) with an API key
+  ([create one](/authentication)), a Next.js app, and either a **Clerk** or **Auth.js
+  (NextAuth)** setup. Start with an `sk_test_` key so nothing reaches a real inbox while
+  you wire this up.
+</Note>
+
+<Steps>
+  <Step title="Author the welcome template in the dashboard">
+    In the SenderKit dashboard, create an `email` [template](/concepts/templates) with
+    the slug `welcome`. Write the subject and body, and reference your dynamic values as
+    [variables](/concepts/variables) with Mustache braces:
+
+    ```text Template copy (in the dashboard editor)
+    Subject: Welcome to Acme, {{name}} 👋
+
+    Hi {{name}},
+
+    Thanks for signing up. Here's your dashboard to get started:
+    {{dashboard_url}}
+    ```
+
+    Don't want to start from a blank editor? Use [AI authoring](/concepts/ai-authoring)
+    to draft the subject, layout, and variables from a one-line brief, then refine and
+    **publish**.
+
+    <Tip>
+      In test mode SenderKit renders your **latest** draft, so you can iterate on copy
+      without publishing. Live sends only ever render the
+      [published version](/concepts/versioning) — publish when you're happy.
+    </Tip>
+  </Step>
+
+  <Step title="Install the SDK and configure the client">
+    <CodeGroup>
+      ```bash npm
+      npm install @senderkit/sdk
+      ```
+
+      ```bash pnpm
+      pnpm add @senderkit/sdk
+      ```
+
+      ```bash bun
+      bun add @senderkit/sdk
+      ```
+    </CodeGroup>
+
+    Set your key in the environment, and create a single shared client:
+
+    ```bash .env.local
+    SENDERKIT_API_KEY=sk_test_...
+    ```
+
+    ```ts lib/senderkit.ts
+    import { SenderKit } from "@senderkit/sdk";
+
+    export const senderkit = new SenderKit({
+      apiKey: process.env.SENDERKIT_API_KEY!,
+    });
+    ```
+
+    Then a small helper both auth integrations will call:
+
+    ```ts lib/email.ts
+    import { senderkit } from "./senderkit";
+
+    export async function sendWelcomeEmail(opts: {
+      userId: string;
+      email: string;
+      name?: string;
+    }) {
+      await senderkit.send({
+        template: "welcome",
+        to: opts.email,
+        vars: {
+          name: opts.name ?? "there",
+          dashboard_url: "https://app.example.com/dashboard",
+        },
+        // A stable key makes a duplicate webhook or a retry a no-op.
+        idempotencyKey: `welcome:${opts.userId}`,
+        // Indexed — lets you later filter messages down to this user.
+        metadata: { userId: opts.userId },
+      });
+    }
+    ```
+
+    <Warning>
+      Keep the API key server-side only. The SDK runs in your Next.js route handlers and
+      server actions — never in a client component or the browser bundle.
+    </Warning>
+  </Step>
+
+  <Step title="Trigger the send on signup">
+    The SenderKit side is identical either way — the only difference is how your auth
+    provider tells you a user was created.
+
+    <Tabs>
+      <Tab title="Clerk">
+        Clerk delivers signup events as **webhooks** (over [Svix](https://www.svix.com/)).
+        Add a route handler that verifies the request and calls your helper on
+        `user.created`:
+
+        ```ts app/api/webhooks/clerk/route.ts
+        import { verifyWebhook } from "@clerk/nextjs/webhooks";
+        import { NextRequest } from "next/server";
+        import { sendWelcomeEmail } from "@/lib/email";
+
+        export async function POST(req: NextRequest) {
+          try {
+            const evt = await verifyWebhook(req);
+
+            if (evt.type === "user.created") {
+              const { id, email_addresses, primary_email_address_id, first_name } =
+                evt.data;
+              const email = email_addresses.find(
+                (e) => e.id === primary_email_address_id,
+              )?.email_address;
+
+              if (email) {
+                await sendWelcomeEmail({ userId: id, email, name: first_name ?? undefined });
+              }
+            }
+
+            return new Response("ok", { status: 200 });
+          } catch (err) {
+            console.error("Clerk webhook verification failed", err);
+            return new Response("Bad signature", { status: 400 });
+          }
+        }
+        ```
+
+        Then register the endpoint: **Clerk Dashboard → Webhooks → Add Endpoint**, point
+        it at `https://your-app.com/api/webhooks/clerk`, subscribe to `user.created`, and
+        copy the **Signing Secret** into your environment as
+        `CLERK_WEBHOOK_SIGNING_SECRET` (`verifyWebhook` reads it automatically).
+
+        <Tip>
+          To test locally, expose your dev server (`ngrok http 3000`), use that URL as the
+          endpoint, and fire a sample `user.created` from the endpoint's **Testing** tab.
+        </Tip>
+      </Tab>
+
+      <Tab title="Auth.js (NextAuth)">
+        Auth.js exposes a `createUser` event that fires the first time a user is persisted.
+        Call your helper there:
+
+        ```ts auth.ts
+        import NextAuth from "next-auth";
+        import { sendWelcomeEmail } from "@/lib/email";
+
+        export const { handlers, auth, signIn, signOut } = NextAuth({
+          adapter: myDatabaseAdapter, // required — see the warning below
+          providers: [
+            /* ...your providers... */
+          ],
+          events: {
+            async createUser({ user }) {
+              if (user.email) {
+                await sendWelcomeEmail({
+                  userId: user.id!,
+                  email: user.email,
+                  name: user.name ?? undefined,
+                });
+              }
+            },
+          },
+        });
+        ```
+
+        <Warning>
+          `createUser` only fires when a **database adapter** is configured. A JWT-only
+          session strategy never persists a user record, so the event never runs. If
+          you're not using an adapter, trigger the send from wherever you first create the
+          user row instead.
+        </Warning>
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Verify it works">
+    With your `sk_test_` key in place, sign up a test user (Clerk's test tab, or a real
+    signup flow against your dev database for Auth.js).
+
+    The send is accepted immediately and [delivered asynchronously](/concepts/sending). In
+    test mode SenderKit synthesizes the full lifecycle —
+    `queued → rendered → sent → delivered` — without touching a provider. Confirm it in the
+    dashboard, or from code:
+
+    ```ts
+    const { data } = await senderkit.messages.list({ template: "welcome" });
+    console.log(data[0]?.status); // "delivered" in test mode
+    ```
+
+    Because the send is keyed on `welcome:${userId}`, a duplicate webhook delivery (they
+    happen — delivery is at-least-once) collapses to the same message instead of emailing
+    the user twice.
+  </Step>
+
+  <Step title="Go live">
+    Swap the environment key to `sk_live_` and register a **production** webhook endpoint
+    in Clerk (or deploy your Auth.js app). No code changes — SenderKit
+    [derives live vs. test](/concepts/environments) from the key prefix, and the welcome
+    template you published renders for real.
+  </Step>
+</Steps>
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Recover failed payments" icon="credit-card" href="/guides/stripe-lifecycle">
+    The Stripe lifecycle emails Stripe doesn't send for you.
+  </Card>
+  <Card title="Send team invites" icon="user-plus" href="/guides/team-invites">
+    Invite teammates with a tokenized accept link.
+  </Card>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    Idempotency, scheduling, and the accept-now / deliver-later model.
+  </Card>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    Track a send from queued to delivered.
+  </Card>
+</CardGroup>

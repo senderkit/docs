@@ -1,0 +1,198 @@
+---
+title: "Send team & workspace invites"
+sidebarTitle: "Team invites"
+description: "Invite teammates by email with a tokenized accept link — an email no platform sends for you."
+icon: 'user-plus'
+---
+
+By the end of this guide, a user can invite a teammate to their workspace, and the
+invitee gets a branded email with a one-click accept link that adds them to the team.
+
+This is a textbook SenderKit fit: nobody sends "Ada invited you to Acme" for you — it's
+entirely your app's domain — and the copy (workspace name, inviter, role) is all dynamic
+[variables](/concepts/variables). You wire the send once; the wording stays editable in
+the dashboard.
+
+<Note>
+  **You'll need:** a [SenderKit account](https://senderkit.com) with an API key, a Next.js
+  app, and a database (the examples use Postgres on **Supabase** or **Neon**). Use an
+  `sk_test_` key while building.
+</Note>
+
+<Steps>
+  <Step title="Author the invite template">
+    Create an `email` [template](/concepts/templates) with the slug `team-invite` and
+    these [variables](/concepts/variables):
+
+    ```text Template copy (in the dashboard editor)
+    Subject: {{inviter_name}} invited you to {{workspace_name}}
+
+    {{inviter_name}} added you to {{workspace_name}} as a {{role}}.
+
+    Accept the invite:
+    {{accept_url}}
+    ```
+  </Step>
+
+  <Step title="Add an invites table">
+    Each invite is a row with a unique, unguessable token and a status.
+
+    <CodeGroup>
+      ```sql Supabase / Postgres
+      create table invites (
+        id           uuid primary key default gen_random_uuid(),
+        workspace_id uuid not null,
+        email        text not null,
+        role         text not null default 'member',
+        token        text not null unique,
+        status       text not null default 'pending',
+        created_at   timestamptz not null default now()
+      );
+      ```
+
+      ```sql Neon / Postgres
+      create table invites (
+        id           uuid primary key default gen_random_uuid(),
+        workspace_id uuid not null,
+        email        text not null,
+        role         text not null default 'member',
+        token        text not null unique,
+        status       text not null default 'pending',
+        created_at   timestamptz not null default now()
+      );
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Configure the SenderKit client">
+    <CodeGroup>
+      ```bash npm
+      npm install @senderkit/sdk
+      ```
+
+      ```bash pnpm
+      pnpm add @senderkit/sdk
+      ```
+
+      ```bash bun
+      bun add @senderkit/sdk
+      ```
+    </CodeGroup>
+
+    ```ts lib/senderkit.ts
+    import { SenderKit } from "@senderkit/sdk";
+
+    export const senderkit = new SenderKit({ apiKey: process.env.SENDERKIT_API_KEY! });
+    ```
+  </Step>
+
+  <Step title="Create the invite and send it">
+    A server action: mint a token, persist the invite, build the accept URL, and send.
+
+    ```ts app/actions/invite.ts
+    "use server";
+
+    import { randomBytes } from "node:crypto";
+    import { senderkit } from "@/lib/senderkit";
+    import { db } from "@/lib/db"; // your query layer (Drizzle, Prisma, postgres.js…)
+
+    export async function inviteTeammate(opts: {
+      workspaceId: string;
+      workspaceName: string;
+      inviterName: string;
+      email: string;
+      role?: string;
+    }) {
+      const token = randomBytes(24).toString("base64url");
+      const role = opts.role ?? "member";
+
+      await db.invites.insert({
+        workspaceId: opts.workspaceId,
+        email: opts.email,
+        role,
+        token,
+        status: "pending",
+      });
+
+      const acceptUrl = `https://app.example.com/invite/accept?token=${token}`;
+
+      await senderkit.send({
+        template: "team-invite",
+        to: opts.email,
+        vars: {
+          inviter_name: opts.inviterName,
+          workspace_name: opts.workspaceName,
+          role,
+          accept_url: acceptUrl,
+        },
+        idempotencyKey: `invite:${token}`,
+        metadata: { workspaceId: opts.workspaceId },
+      });
+
+      return { ok: true };
+    }
+    ```
+
+    <Warning>
+      The token is the security boundary — make it long and random (here, 24 random bytes)
+      and store only this single-use value. Never put the workspace ID or email directly
+      in the accept URL where it could be guessed or tampered with.
+    </Warning>
+  </Step>
+
+  <Step title="Handle the accept link">
+    When the invitee clicks through, validate the token, add them to the workspace, and
+    mark the invite consumed.
+
+    ```ts app/invite/accept/route.ts
+    import { NextRequest, NextResponse } from "next/server";
+    import { db } from "@/lib/db";
+
+    export async function GET(req: NextRequest) {
+      const token = req.nextUrl.searchParams.get("token");
+      if (!token) return NextResponse.redirect(new URL("/invite/invalid", req.url));
+
+      const invite = await db.invites.findByToken(token);
+      if (!invite || invite.status !== "pending") {
+        return NextResponse.redirect(new URL("/invite/invalid", req.url));
+      }
+
+      await db.members.add({
+        workspaceId: invite.workspaceId,
+        email: invite.email,
+        role: invite.role,
+      });
+      await db.invites.update(invite.id, { status: "accepted" });
+
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+    ```
+  </Step>
+
+  <Step title="Verify it works">
+    With your `sk_test_` key, call `inviteTeammate(...)` from a form or a quick script and
+    confirm the message in the SenderKit dashboard (test mode runs the full
+    [lifecycle](/concepts/messages) without sending a real email). Copy the `accept_url`
+    from the rendered message and hit it to confirm the invitee lands in the workspace and
+    the row flips to `accepted`.
+
+    Swap to an `sk_live_` key to send real invites — no other change.
+  </Step>
+</Steps>
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Notify on a database change" icon="database" href="/guides/supabase-notifications">
+    Fire emails straight from Supabase row changes.
+  </Card>
+  <Card title="Welcome on signup" icon="hand-wave" href="/guides/welcome-email">
+    Greet users the moment they join.
+  </Card>
+  <Card title="Variables" icon="brackets-curly" href="/concepts/variables">
+    Conditionals and loops for richer invite copy.
+  </Card>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    Idempotency keys and the async delivery model.
+  </Card>
+</CardGroup>
