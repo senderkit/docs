@@ -86,7 +86,7 @@
           },
           {
             "group": "Endpoints",
-            "openapi": "api-reference/openapi.yaml"
+            "openapi": "https://senderkit.com/openapi.yaml"
           }
         ]
       }
