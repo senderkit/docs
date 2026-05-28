@@ -64,7 +64,12 @@
           {
             "group": "Guides",
             "pages": [
-              "guides/overview"
+              "guides/overview",
+              "guides/welcome-email",
+              "guides/stripe-lifecycle",
+              "guides/team-invites",
+              "guides/supabase-notifications",
+              "guides/ai-agent"
             ]
           },
           {

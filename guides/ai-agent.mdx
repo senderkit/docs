@@ -1,0 +1,157 @@
+---
+title: "Send emails from your AI agent"
+sidebarTitle: "AI agent"
+description: "Give an AI agent a SenderKit tool so it can send transactional emails — built with the Vercel AI SDK."
+icon: 'robot'
+---
+
+By the end of this guide, an AI agent built with the [Vercel AI SDK](https://ai-sdk.dev)
+can send transactional emails on its own: you expose a `sendEmail` tool backed by
+SenderKit, and the model decides when to call it and dispatches a real templated send.
+
+This is the inverse of the [MCP server](/mcp/overview) — there, an assistant *operates*
+SenderKit for you in your editor. Here, **your own app's agent** sends through SenderKit
+as part of whatever it's doing: an onboarding bot that emails a setup guide, a support
+agent that confirms a resolution, a workflow that notifies on completion.
+
+<Note>
+  **You'll need:** a [SenderKit account](https://senderkit.com) with an API key, a model
+  provider key (the example uses OpenAI), and a Node.js or Next.js app. Use an `sk_test_`
+  key — an agent deciding to email people is exactly when you want sends going nowhere
+  real until you trust it.
+</Note>
+
+<Steps>
+  <Step title="Author a template for the agent to send">
+    Give the agent a [template](/concepts/templates) to target rather than letting it
+    compose raw HTML — the copy stays controlled and editable while the agent only chooses
+    *who* and *what variables*. For this example, reuse a `welcome` template with a `name`
+    variable (see [Send a welcome email](/guides/welcome-email)).
+  </Step>
+
+  <Step title="Install dependencies and configure the client">
+    <CodeGroup>
+      ```bash npm
+      npm install ai @ai-sdk/openai zod @senderkit/sdk
+      ```
+
+      ```bash pnpm
+      pnpm add ai @ai-sdk/openai zod @senderkit/sdk
+      ```
+
+      ```bash bun
+      bun add ai @ai-sdk/openai zod @senderkit/sdk
+      ```
+    </CodeGroup>
+
+    ```ts lib/senderkit.ts
+    import { SenderKit } from "@senderkit/sdk";
+
+    export const senderkit = new SenderKit({ apiKey: process.env.SENDERKIT_API_KEY! });
+    ```
+  </Step>
+
+  <Step title="Define the sendEmail tool">
+    A tool is a typed function the model can call. Constrain its inputs tightly — a
+    `zod` enum of known template slugs, a validated email — so the model can't send
+    anything you didn't intend.
+
+    ```ts lib/tools/send-email.ts
+    import { tool } from "ai";
+    import { z } from "zod";
+    import { senderkit } from "@/lib/senderkit";
+
+    export const sendEmail = tool({
+      description:
+        "Send a transactional email to a user via SenderKit. " +
+        "Only use one of the known template slugs.",
+      inputSchema: z.object({
+        to: z.string().email().describe("Recipient email address"),
+        template: z
+          .enum(["welcome", "trial-ending", "export-ready"])
+          .describe("Which template to send"),
+        vars: z
+          .record(z.string(), z.string())
+          .describe("Template variables as key/value pairs"),
+      }),
+      execute: async ({ to, template, vars }) => {
+        const result = await senderkit.send({
+          template,
+          to,
+          vars,
+          metadata: { source: "ai-agent" },
+        });
+        return { id: result.id, status: result.status };
+      },
+    });
+    ```
+
+    The value `execute` returns is fed back to the model, so it can confirm what it did
+    ("queued message msg_… to ada@example.com").
+  </Step>
+
+  <Step title="Wire the tool into the agent">
+    Pass the tool to `generateText` (or `streamText`) and allow multiple steps so the model
+    can call the tool, read the result, and reply.
+
+    ```ts app/agent.ts
+    import { generateText, stepCountIs } from "ai";
+    import { openai } from "@ai-sdk/openai";
+    import { sendEmail } from "@/lib/tools/send-email";
+
+    const { text, steps } = await generateText({
+      model: openai("gpt-4o"),
+      tools: { sendEmail },
+      stopWhen: stepCountIs(5), // allow tool call → result → final answer
+      prompt: "Send the welcome email to ada@example.com — her name is Ada.",
+    });
+
+    // Inspect what the agent actually did:
+    const sends = steps.flatMap((s) => s.toolResults);
+    console.log(text, sends);
+    ```
+  </Step>
+
+  <Step title="Verify it works">
+    Run it with your `sk_test_` key. The agent calls `sendEmail`, SenderKit accepts the
+    send, and in test mode runs the full [lifecycle](/concepts/messages) without touching a
+    provider. Confirm it landed:
+
+    ```ts
+    const { data } = await senderkit.messages.list({ metadata: { source: "ai-agent" } });
+    console.log(data[0]?.status);
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  An agent that can email anyone is a real risk surface. Before going live with an
+  `sk_live_` key:
+
+  - **Constrain recipients.** Validate `to` against your own user records — don't let the
+    model email arbitrary addresses it invented.
+  - **Constrain templates.** Keep the `z.enum` of slugs tight; never let the model pass
+    free-form HTML to a [raw send](/concepts/sending#template-sends-and-raw-sends) in
+    production.
+  - **Add idempotency.** If the agent can be re-run, pass a stable
+    [`idempotencyKey`](/concepts/sending#idempotency) so a retry doesn't double-send.
+  - **Consider a human in the loop.** For anything irreversible, require confirmation
+    before the tool actually sends.
+</Warning>
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="MCP Server" icon="robot" href="/mcp/overview">
+    The other direction — operate SenderKit from your AI editor.
+  </Card>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    Idempotency, raw sends, and the async model.
+  </Card>
+  <Card title="Welcome on signup" icon="hand-wave" href="/guides/welcome-email">
+    The template this agent sends, authored end to end.
+  </Card>
+  <Card title="TypeScript SDK" icon="js" href="/sdks/typescript">
+    The full `send()` surface the tool wraps.
+  </Card>
+</CardGroup>

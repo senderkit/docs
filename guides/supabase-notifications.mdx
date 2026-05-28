@@ -1,0 +1,182 @@
+---
+title: "Notify on a database change with Supabase"
+sidebarTitle: "Supabase notifications"
+description: "Send an email when a row changes — driven by a Supabase Database Webhook and an Edge Function."
+icon: 'database'
+---
+
+By the end of this guide, an email sends automatically when a row in your Supabase
+database changes — using the example of an async export job: when its row flips to
+`done`, the user gets a "your export is ready" email with a download link.
+
+Supabase Auth already sends its own emails (confirmation, magic link, reset), so don't
+rebuild those. The gap is **app-domain** notifications — "your export is ready," "a new
+comment," "someone joined your waitlist" — none of which any platform sends for you. They
+all reduce to the same pattern: a row changes, you call [`send()`](/concepts/sending).
+
+<Note>
+  **You'll need:** a [SenderKit account](https://senderkit.com) with an API key, a Supabase
+  project, and the [Supabase CLI](https://supabase.com/docs/guides/cli). The example
+  assumes an `exports` table with `email`, `file_name`, `download_url`, and `status`
+  columns.
+</Note>
+
+<Steps>
+  <Step title="Author the template">
+    Create an `email` [template](/concepts/templates) with the slug `export-ready` and the
+    [variables](/concepts/variables) `file_name` and `download_url`:
+
+    ```text Template copy (in the dashboard editor)
+    Subject: Your export is ready
+
+    {{file_name}} is ready to download:
+    {{download_url}}
+    ```
+  </Step>
+
+  <Step title="Choose how the row change reaches SenderKit">
+    Supabase can react to row changes two ways. Both are valid; pick based on whether you
+    need to keep your API key server-side and shape the payload.
+
+    <Tabs>
+      <Tab title="Edge Function (recommended)">
+        A [Database Webhook](https://supabase.com/docs/guides/database/webhooks) invokes a
+        Supabase [Edge Function](https://supabase.com/docs/guides/functions), which holds
+        your SenderKit key as a secret and calls the SDK. This keeps the key off the
+        database trigger and lets you transform or look up data before sending.
+
+        ```ts supabase/functions/notify-export/index.ts
+        import { SenderKit } from "npm:@senderkit/sdk";
+
+        const senderkit = new SenderKit({ apiKey: Deno.env.get("SENDERKIT_API_KEY")! });
+        const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET")!;
+
+        Deno.serve(async (req) => {
+          // Reject anything that isn't your database webhook.
+          if (req.headers.get("x-webhook-secret") !== WEBHOOK_SECRET) {
+            return new Response("Unauthorized", { status: 401 });
+          }
+
+          const payload = await req.json();
+          // { type, table, schema, record, old_record }
+          const row = payload.record;
+
+          if (payload.type === "UPDATE" && row?.status === "done") {
+            await senderkit.send({
+              template: "export-ready",
+              to: row.email,
+              vars: { file_name: row.file_name, download_url: row.download_url },
+              idempotencyKey: `export:${row.id}`,
+              metadata: { exportId: String(row.id) },
+            });
+          }
+
+          return new Response(JSON.stringify({ ok: true }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        });
+        ```
+
+        Set the secrets and deploy. Webhook-invoked functions aren't called with a Supabase
+        JWT, so deploy with `--no-verify-jwt` and rely on your own `x-webhook-secret`
+        header instead:
+
+        ```bash
+        supabase secrets set SENDERKIT_API_KEY=sk_test_... WEBHOOK_SECRET=$(openssl rand -hex 16)
+        supabase functions deploy notify-export --no-verify-jwt
+        ```
+
+        <Warning>
+          `--no-verify-jwt` makes the function publicly reachable. The shared
+          `x-webhook-secret` check above is what keeps strangers from triggering sends —
+          don't skip it.
+        </Warning>
+      </Tab>
+
+      <Tab title="Database Webhook → Next.js route">
+        Prefer to keep everything in your app? Point the Database Webhook at a Next.js
+        route handler instead of an Edge Function. The handler is the same logic:
+
+        ```ts app/api/hooks/export/route.ts
+        import { NextRequest, NextResponse } from "next/server";
+        import { senderkit } from "@/lib/senderkit";
+
+        export async function POST(req: NextRequest) {
+          if (req.headers.get("x-webhook-secret") !== process.env.WEBHOOK_SECRET) {
+            return new Response("Unauthorized", { status: 401 });
+          }
+
+          const { type, record } = await req.json();
+          if (type === "UPDATE" && record?.status === "done") {
+            await senderkit.send({
+              template: "export-ready",
+              to: record.email,
+              vars: { file_name: record.file_name, download_url: record.download_url },
+              idempotencyKey: `export:${record.id}`,
+              metadata: { exportId: String(record.id) },
+            });
+          }
+
+          return NextResponse.json({ ok: true });
+        }
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Create the Database Webhook">
+    In the Supabase Studio, go to **Integrations → Webhooks → Create a new hook**:
+
+    - **Table:** `exports`
+    - **Events:** `Update`
+    - **Type:** HTTP Request → `POST`
+    - **URL:** your Edge Function URL (`https://<project-ref>.supabase.co/functions/v1/notify-export`) or your Next.js route
+    - **HTTP Headers:** add `x-webhook-secret` with the value you generated above
+
+    The webhook POSTs the [standard payload](https://supabase.com/docs/guides/database/webhooks#payload)
+    — `{ type, table, schema, record, old_record }` — on every matching row change.
+  </Step>
+
+  <Step title="Verify it works">
+    With an `sk_test_` key set as the function secret, flip a row to `done`:
+
+    ```sql
+    update exports set status = 'done',
+      file_name = 'report.csv',
+      download_url = 'https://files.example.com/report.csv'
+    where id = '...';
+    ```
+
+    Watch the message appear in the SenderKit dashboard, running the full
+    [lifecycle](/concepts/messages) in test mode. The `idempotencyKey: export:${id}` means
+    a duplicate webhook delivery won't email twice.
+
+    <Warning>
+      Database Webhook delivery is **asynchronous** and can lag a second or more behind the
+      commit — fine for notifications, but don't rely on it for anything that must be
+      synchronous with the write.
+    </Warning>
+  </Step>
+
+  <Step title="Go live">
+    Update the function secret to an `sk_live_` key (`supabase secrets set SENDERKIT_API_KEY=sk_live_...`
+    and redeploy). Same trigger, real delivery.
+  </Step>
+</Steps>
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Send team invites" icon="user-plus" href="/guides/team-invites">
+    Another app-domain email, triggered from your own data.
+  </Card>
+  <Card title="Recover failed payments" icon="credit-card" href="/guides/stripe-lifecycle">
+    Lifecycle emails from Stripe webhooks.
+  </Card>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    Idempotency and the accept-now / deliver-later model.
+  </Card>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    Filter sends by the `metadata` you attached.
+  </Card>
+</CardGroup>

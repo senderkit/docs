@@ -4,5 +4,25 @@ description: "Task-oriented walkthroughs for common SenderKit workflows."
 icon: 'book-open'
 ---
 
-This page is a placeholder for SenderKit guides — task-oriented walkthroughs for
-common workflows. Individual guides will be added here in a later pass.
+Each guide is a complete, runnable recipe — it takes you from nothing to a working
+outcome by combining SenderKit with the tools you already use (Clerk, Auth.js, Stripe,
+Supabase, the Vercel AI SDK). They go deeper than the [Quickstart](/quickstart) and lean
+on the [Core Concepts](/concepts/templates) rather than re-explaining them.
+
+<CardGroup cols={2}>
+  <Card title="Send a welcome email on signup" icon="hand-wave" href="/guides/welcome-email">
+    Trigger a welcome email from a Clerk webhook or an Auth.js event.
+  </Card>
+  <Card title="Recover failed payments & win back churn" icon="credit-card" href="/guides/stripe-lifecycle">
+    Dunning, win-back, and trial-ending emails from Stripe webhooks.
+  </Card>
+  <Card title="Send team & workspace invites" icon="user-plus" href="/guides/team-invites">
+    Invite teammates with a tokenized accept link.
+  </Card>
+  <Card title="Notify on a database change with Supabase" icon="database" href="/guides/supabase-notifications">
+    Email on a row change via a Database Webhook and Edge Function.
+  </Card>
+  <Card title="Send emails from your AI agent" icon="robot" href="/guides/ai-agent">
+    Give a Vercel AI SDK agent a SenderKit tool.
+  </Card>
+</CardGroup>
