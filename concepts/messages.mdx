@@ -15,6 +15,8 @@ actually succeeded.
 ```mermaid
 stateDiagram-v2
     [*] --> queued
+    [*] --> scheduled
+    scheduled --> queued
     queued --> rendered
     rendered --> sent
     sent --> delivered
@@ -26,7 +28,8 @@ stateDiagram-v2
 
 | Status | What it means | What triggers it |
 | --- | --- | --- |
-| `queued` | Accepted and recorded | The `send()` call |
+| `scheduled` | Accepted but holding until `scheduledAt` | A `send()` with a future `scheduledAt` |
+| `queued` | Accepted and ready to dispatch | The `send()` call, or a scheduled message reaching its fire time |
 | `rendered` | Template + variables resolved | Background dispatcher |
 | `sent` | A provider accepted the message | Successful provider dispatch |
 | `delivered` | The provider confirmed delivery | Provider webhook |

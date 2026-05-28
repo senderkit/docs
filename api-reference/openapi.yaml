@@ -16,8 +16,9 @@ info:
     created in the dashboard and shown once at creation.
 
     ## Sends are asynchronous
-    `POST /v1/send` enqueues the message and returns `202` with `status: "queued"`.
-    Delivery happens out of band; poll `GET /v1/messages` to observe progress.
+    `POST /v1/send` enqueues the message and returns `202` with `status: "queued"`
+    (or `"scheduled"` when the request includes a future `scheduledAt`). Delivery
+    happens out of band; poll `GET /v1/messages` to observe progress.
 servers:
   - url: https://senderkit.com/api
     description: Production
@@ -77,6 +78,12 @@ paths:
                   interpolate: true
                   vars:
                     name: Ada
+              scheduled:
+                summary: Scheduled send
+                value:
+                  template: trial-ending
+                  to: user@example.com
+                  scheduledAt: "2026-06-01T09:00:00Z"
       responses:
         '202':
           description: Message accepted and queued for delivery.
@@ -317,7 +324,7 @@ components:
 
     MessageStatus:
       type: string
-      enum: [queued, rendered, dispatched, sent, delivered, failed, opted_out]
+      enum: [scheduled, queued, rendered, dispatched, sent, delivered, failed, opted_out]
 
     Metadata:
       type: object
@@ -327,6 +334,16 @@ components:
           - type: string
           - type: number
           - type: boolean
+
+    ScheduledAt:
+      type: string
+      format: date-time
+      description: |
+        ISO 8601 timestamp (with timezone offset) to defer delivery until.
+        Must be in the future (with a few seconds of clock-skew tolerance) and
+        no more than 30 days out. Omit to send immediately. When supplied, the
+        send response returns `status: "scheduled"`.
+      example: "2026-06-01T09:00:00Z"
 
     TemplateSend:
       type: object
@@ -352,6 +369,8 @@ components:
           description: Variables interpolated into the template.
         metadata:
           $ref: '#/components/schemas/Metadata'
+        scheduledAt:
+          $ref: '#/components/schemas/ScheduledAt'
 
     RawEmailSend:
       type: object
@@ -387,6 +406,8 @@ components:
           additionalProperties: true
         metadata:
           $ref: '#/components/schemas/Metadata'
+        scheduledAt:
+          $ref: '#/components/schemas/ScheduledAt'
 
     RawSmsSend:
       type: object
@@ -411,6 +432,8 @@ components:
           additionalProperties: true
         metadata:
           $ref: '#/components/schemas/Metadata'
+        scheduledAt:
+          $ref: '#/components/schemas/ScheduledAt'
 
     RawPushSend:
       type: object
@@ -446,6 +469,8 @@ components:
           additionalProperties: true
         metadata:
           $ref: '#/components/schemas/Metadata'
+        scheduledAt:
+          $ref: '#/components/schemas/ScheduledAt'
 
     SendResult:
       type: object
@@ -457,7 +482,10 @@ components:
           example: msg_0a1b2c3d4e5f6g7h
         status:
           type: string
-          const: queued
+          enum: [queued, scheduled]
+          description: |
+            `"scheduled"` when the request included a future `scheduledAt`;
+            otherwise `"queued"`.
         livemode:
           type: boolean
 

@@ -1,11 +1,259 @@
 ---
 title: "send"
-description: "Dispatch a message from the terminal."
+description: "Dispatch a templated or raw message from the terminal."
 icon: 'paper-plane'
 ---
 
-This page documents the CLI `send` command group — dispatching both template-based
-and raw sends from the terminal. Subcommands, arguments, and flags will be
-documented from the source; nothing is guessed here.
+`senderkit send` fires a [send](/concepts/sending) from your terminal — the same
+operation as the SDK's `send()` and `sendRaw()`. Useful for smoke-testing
+templates while you build them, scripting one-off blasts, and triggering
+messages from cron or CI.
 
-{/* TODO: read flags from senderkit-sdk/packages/cli/src/core/commands/send.ts and send-raw.ts */}
+Like the SDK, both commands return as soon as the API has accepted the message —
+the `id` you get back is a [queued message](/concepts/messages), not a delivered
+one. Watch it with [`messages list`](/cli/messages).
+
+## `senderkit send`
+
+Send a [templated message](/concepts/templates), filling in
+[variables](/concepts/variables) at send time.
+
+```bash
+senderkit send <template> <to> [options]
+```
+
+### Arguments
+
+<ParamField path="template" required>
+  Template slug, e.g. `"welcome"` or `"password-reset"`.
+</ParamField>
+
+<ParamField path="to" required>
+  Recipient address — email, phone number, or push token, matching the
+  template's [channel](/concepts/channels-and-providers).
+</ParamField>
+
+### Options
+
+<ParamField path="--vars <json>">
+  Template variables as a JSON object, e.g. `'{"name":"Ada","city":"London"}'`.
+  Substituted into the template's [variable](/concepts/variables) holes.
+</ParamField>
+
+<ParamField path="--channel <email|sms|push>">
+  Force a channel. Defaults to the template's primary channel — only set this
+  for multi-channel templates.
+</ParamField>
+
+<ParamField path="--version <number>">
+  Pin a specific template [version](/concepts/versioning). Omit to let
+  SenderKit pick the current published version for the environment.
+</ParamField>
+
+<ParamField path="--metadata <json>">
+  Free-form metadata as a JSON object of strings, numbers, or booleans —
+  e.g. `'{"userId":"usr_123","orderId":"ord_9"}'`. Indexed for later filtering
+  in [`messages list`](/cli/messages).
+</ParamField>
+
+<ParamField path="--scheduled-at <iso8601>">
+  Defer delivery until a future ISO 8601 timestamp, e.g.
+  `"2026-06-01T09:00:00Z"`. Must be in the future and within 30 days. The
+  response comes back with `status: scheduled` instead of `queued`.
+</ParamField>
+
+<ParamField path="--idempotency-key <key>">
+  Idempotency key. A repeat key within your workspace returns the original
+  message instead of duplicating. Auto-generated if omitted — see
+  [Sending: Idempotency](/concepts/sending#idempotency).
+</ParamField>
+
+### Examples
+
+```bash
+# Simplest send — slug + recipient
+senderkit send welcome user@example.com
+
+# With variables
+senderkit send welcome user@example.com --vars '{"name":"Ada"}'
+
+# Pin a version and tag with metadata
+senderkit send receipt user@example.com \
+  --version 7 \
+  --vars '{"amount":"$42"}' \
+  --metadata '{"orderId":"ord_9"}' \
+  --idempotency-key "receipt:ord_9"
+
+# Schedule for later
+senderkit send trial-ending user@example.com \
+  --scheduled-at 2026-06-01T09:00:00Z
+```
+
+Human-readable output on success:
+
+```
+✓ Queued message msg_01HZ…
+id:     msg_01HZ…
+status: queued
+mode:   test
+```
+
+With `--json`, the same response as the [send endpoint](/api-reference/introduction):
+
+```json
+{
+  "id": "msg_01HZ…",
+  "status": "queued",
+  "livemode": false
+}
+```
+
+## `senderkit send-raw`
+
+Send inline content without a registered template. Useful for one-off messages
+that don't warrant a template, or for testing provider configuration before you
+move copy into the dashboard.
+
+```bash
+senderkit send-raw <to> --channel <email|sms|push> [content options]
+```
+
+`--channel` selects the content shape; the required content options depend on
+the channel.
+
+### Arguments
+
+<ParamField path="to" required>
+  Recipient address — email, phone number, or push token.
+</ParamField>
+
+### Required option
+
+<ParamField path="--channel <email|sms|push>" required>
+  Selects the content shape. Required on every call.
+</ParamField>
+
+### Email content (`--channel email`)
+
+<ParamField path="--subject <string>" required>
+  Email subject line.
+</ParamField>
+
+<ParamField path="--html <string>" required>
+  HTML body.
+</ParamField>
+
+<ParamField path="--text <string>">
+  Plain-text fallback body.
+</ParamField>
+
+<ParamField path="--preheader <string>">
+  Email preheader — the snippet shown in inbox previews.
+</ParamField>
+
+<ParamField path="--from <string>">
+  From override, e.g. `"Acme <hello@acme.com>"`. Defaults to your workspace's
+  configured sender.
+</ParamField>
+
+### SMS content (`--channel sms`)
+
+<ParamField path="--body <string>" required>
+  SMS body.
+</ParamField>
+
+### Push content (`--channel push`)
+
+<ParamField path="--title <string>" required>
+  Notification title.
+</ParamField>
+
+<ParamField path="--body <string>" required>
+  Notification body.
+</ParamField>
+
+<ParamField path="--badge <number>">
+  Badge count.
+</ParamField>
+
+<ParamField path="--sound <string>">
+  Notification sound name.
+</ParamField>
+
+<ParamField path="--push-data <json>">
+  Push data payload as a JSON object of strings,
+  e.g. `'{"deeplink":"app://x"}'`.
+</ParamField>
+
+### Shared options
+
+<ParamField path="--vars <json>">
+  Variables for interpolation as a JSON object. Only substituted when
+  `--interpolate` is set.
+</ParamField>
+
+<ParamField path="--metadata <json>">
+  Free-form metadata as a JSON object.
+</ParamField>
+
+<ParamField path="--interpolate">
+  Run server-side variable substitution over the content. Off by default —
+  raw content is otherwise delivered verbatim.
+</ParamField>
+
+<ParamField path="--scheduled-at <iso8601>">
+  Defer delivery until a future ISO 8601 timestamp, e.g.
+  `"2026-06-01T09:00:00Z"`. Must be in the future and within 30 days. The
+  response comes back with `status: scheduled` instead of `queued`.
+</ParamField>
+
+<ParamField path="--idempotency-key <key>">
+  Idempotency key.
+</ParamField>
+
+### Examples
+
+```bash
+# Email
+senderkit send-raw user@example.com \
+  --channel email \
+  --subject "Hello from the CLI" \
+  --html "<p>Welcome, {{name}}.</p>" \
+  --vars '{"name":"Ada"}' \
+  --interpolate
+
+# SMS
+senderkit send-raw +14155551234 \
+  --channel sms \
+  --body "Your verification code is 042195"
+
+# Push
+senderkit send-raw "dev_token_…" \
+  --channel push \
+  --title "Order shipped" \
+  --body "Tracking attached" \
+  --badge 1 \
+  --push-data '{"deeplink":"app://orders/9"}'
+```
+
+## When to reach for the CLI vs the SDK
+
+Use the CLI for ad-hoc work: triggering a real send while building a template,
+scripting backfills, wiring up cron jobs that pipe through `jq`. For
+application code, use the [TypeScript SDK](/sdks/typescript) — it adds
+automatic retries, batch helpers, and types.
+
+<CardGroup cols={2}>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    What `send()` accepts now and delivers later.
+  </Card>
+  <Card title="Variables" icon="brackets-curly" href="/concepts/variables">
+    How `--vars` fills the dynamic holes in a template.
+  </Card>
+  <Card title="Versioning" icon="code-branch" href="/concepts/versioning">
+    Why `--version` is rarely needed.
+  </Card>
+  <Card title="messages" icon="list-check" href="/cli/messages">
+    Watch the message you just queued.
+  </Card>
+</CardGroup>

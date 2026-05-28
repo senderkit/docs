@@ -27,5 +27,6 @@ See [Authentication](/authentication) for how to create and manage keys.
 
 ## Sends are asynchronous
 
-`POST /v1/send` enqueues the message and returns `202` with `status: "queued"`.
-Delivery happens out of band — poll `GET /v1/messages` to observe progress.
+`POST /v1/send` enqueues the message and returns `202` with `status: "queued"`
+(or `"scheduled"` when the request includes a future `scheduledAt`). Delivery
+happens out of band — poll `GET /v1/messages` to observe progress.
