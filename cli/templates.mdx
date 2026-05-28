@@ -4,8 +4,97 @@ description: "List and inspect templates from the terminal."
 icon: 'file-lines'
 ---
 
-This page documents the CLI `templates` command group — listing templates and
-fetching a single template's detail. Subcommands and flags will be documented from
-the source; nothing is guessed here.
+`senderkit templates` lists the [templates](/concepts/templates) in your
+workspace and prints the detail of a single one. It's the CLI's window into the
+dashboard — useful for confirming a slug exists before you wire up a send, or
+for scripting reports against your template catalogue.
 
-{/* TODO: read flags from senderkit-sdk/packages/cli/src/core/commands/templates-list.ts and templates-get.ts */}
+<Note>
+  Templates are managed in the [SenderKit dashboard](https://senderkit.com) —
+  copy edits, version publishes, and channel changes all happen there. The CLI
+  is read-only on templates; there is no `pull`, `push`, or `create` command,
+  because templates aren't files on disk. To edit a template programmatically,
+  use the [REST API](/api-reference/introduction).
+</Note>
+
+## `senderkit templates list`
+
+List every template in the workspace. No arguments, no flags.
+
+```bash
+senderkit templates list
+```
+
+Output is a table of slug, channel, status, and last-update timestamp:
+
+```
+SLUG               CHANNEL  STATUS   UPDATED
+welcome            email    active   2026-05-12T09:14:02Z
+password-reset     email    active   2026-04-30T16:22:11Z
+verification-code  sms      draft    2026-05-27T11:08:50Z
+```
+
+For scripting, `--json` returns the full template objects:
+
+```bash
+senderkit templates list --json | jq -r '.[] | select(.status=="draft") | .slug'
+```
+
+## `senderkit templates get`
+
+Fetch a single template by slug. Useful for confirming the published version,
+its channel, or its description.
+
+```bash
+senderkit templates get <slug>
+```
+
+### Arguments
+
+<ParamField path="slug" required>
+  Template slug, e.g. `"welcome"`.
+</ParamField>
+
+### Examples
+
+```bash
+senderkit templates get welcome
+```
+
+Human output:
+
+```
+slug:        welcome
+channel:     email
+status:      active
+description: Onboarding email sent on signup
+version:     7
+updatedAt:   2026-05-12T09:14:02Z
+```
+
+With `--json`, you get the full template payload — slug, channel, status,
+current version detail, timestamps, and more — matching the
+[`GET /v1/templates/:slug`](/api-reference/introduction) response.
+
+A template that doesn't exist returns `404` and exits non-zero, so you can use
+`get` as a precondition check in scripts:
+
+```bash
+senderkit templates get welcome --json >/dev/null && \
+  senderkit send welcome user@example.com
+```
+
+<CardGroup cols={2}>
+  <Card title="Templates" icon="file-lines" href="/concepts/templates">
+    The dashboard-editable definitions the CLI is reading.
+  </Card>
+  <Card title="Versioning" icon="code-branch" href="/concepts/versioning">
+    How the `version` field on a template is chosen.
+  </Card>
+  <Card title="send" icon="paper-plane" href="/cli/send">
+    Use a slug from `list` to fire a real send.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    The endpoints behind these commands.
+  </Card>
+</CardGroup>

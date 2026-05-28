@@ -4,8 +4,118 @@ description: "Inspect message history from the terminal."
 icon: 'list-check'
 ---
 
-This page documents the CLI `messages` command group — listing message history and
-filtering by status, channel, template, or metadata. Subcommands and flags will be
-documented from the source; nothing is guessed here.
+`senderkit messages` queries the [message](/concepts/messages) log — the durable
+record of every send and its status. The CLI exposes the list endpoint with
+filters and cursor pagination, paired with `--json` for piping into `jq`,
+spreadsheets, or downstream alerting.
 
-{/* TODO: read flags from senderkit-sdk/packages/cli/src/core/commands/messages-list.ts */}
+## `senderkit messages list`
+
+List messages newest-first. With no flags, returns a recent page across all
+channels and statuses.
+
+```bash
+senderkit messages list [options]
+```
+
+### Options
+
+<ParamField path="--limit <number>">
+  Maximum messages to return (a positive integer). The server has its own
+  default and maximum — see the [API Reference](/api-reference/introduction).
+</ParamField>
+
+<ParamField path="--cursor <string>">
+  Pagination cursor. Use the `nextCursor` from a previous response to fetch the
+  next page.
+</ParamField>
+
+<ParamField path="--status <string>">
+  Filter by [status](/concepts/messages#the-message-lifecycle), e.g. `queued`,
+  `rendered`, `sent`, `delivered`, `failed`, `opted_out`.
+</ParamField>
+
+<ParamField path="--channel <email|sms|push>">
+  Filter by channel.
+</ParamField>
+
+<ParamField path="--template <slug>">
+  Filter by template slug, e.g. `welcome`.
+</ParamField>
+
+### Examples
+
+```bash
+# Recent messages, table view
+senderkit messages list
+
+# Everything that failed, by email
+senderkit messages list --status failed --channel email
+
+# All sends of a specific template
+senderkit messages list --template welcome --limit 100
+
+# Paginate
+senderkit messages list --limit 50
+senderkit messages list --limit 50 --cursor "msg_01HZ…"
+```
+
+Human output:
+
+```
+ID         STATUS     CHANNEL  TEMPLATE        TO                CREATED
+msg_01HZ…  delivered  email    welcome         user@example.com  2026-05-28T10:14:02Z
+msg_01HY…  failed     email    password-reset  jane@example.com  2026-05-28T10:13:55Z
+next cursor: msg_01HX…
+```
+
+### Scripting with `--json`
+
+`--json` emits the full SDK response — a `data` array and a `nextCursor`
+string — which makes `jq` workflows clean:
+
+```bash
+# Count failed messages in the latest page
+senderkit messages list --status failed --json | jq '.data | length'
+
+# Pull every recipient that bounced today
+senderkit messages list --status failed --json | jq -r '.data[].recipient'
+
+# Walk every page
+cursor=""
+while :; do
+  page=$(senderkit messages list --limit 100 ${cursor:+--cursor "$cursor"} --json)
+  echo "$page" | jq '.data[]'
+  cursor=$(echo "$page" | jq -r '.nextCursor // empty')
+  [ -z "$cursor" ] && break
+done
+```
+
+<Note>
+  The CLI doesn't expose a `messages get` or a live tail (`messages tail`) yet.
+  Polling `list` with a filter is the supported pattern; for real-time delivery
+  monitoring use the SSE stream described in the
+  [API Reference](/api-reference/introduction).
+</Note>
+
+<Warning>
+  Messages are retained for [a limited window](/concepts/messages#retention) —
+  3 days on Free, 14 days on Pro. If you need history beyond that, export with
+  `--json` on a schedule and persist in your own system, correlating via the
+  `metadata` you attached at send time.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    The lifecycle and retention rules behind these records.
+  </Card>
+  <Card title="send" icon="paper-plane" href="/cli/send">
+    Fire a send, then query its status here.
+  </Card>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    Why a queued message hasn't been delivered yet.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    The list endpoint, status enum, and live tail stream.
+  </Card>
+</CardGroup>

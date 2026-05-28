@@ -1,12 +1,15 @@
 ---
 title: "Installation"
-description: "Install the @senderkit/cli terminal client."
+description: "Install @senderkit/cli, authenticate, and learn the global flags."
 icon: 'terminal'
 ---
 
-This page documents installing and authenticating `@senderkit/cli`, which exposes
-the same operations as a `senderkit` command and bundles an MCP server. Exact
-configuration and auth flags will be filled in from the CLI source.
+`@senderkit/cli` is a single-binary `senderkit` command that sends notifications,
+lists templates, and inspects message history from your terminal. It wraps the
+same REST surface as the [TypeScript SDK](/sdks/typescript) and bundles the
+[MCP server](/mcp/overview).
+
+## Install
 
 <CodeGroup>
   ```bash npm
@@ -20,6 +23,136 @@ configuration and auth flags will be filled in from the CLI source.
   ```bash bun
   bun add -g @senderkit/cli
   ```
+
+  ```bash npx
+  npx @senderkit/cli --help
+  ```
 </CodeGroup>
 
-{/* TODO: document config/auth from senderkit-sdk/packages/cli/src/core/config.ts */}
+Requires Node.js 18 or newer. After installing, verify it's on your path:
+
+```bash
+senderkit --version
+```
+
+## Authenticate
+
+Every command (except `--help` and `--version`) needs an API key. The CLI looks
+in three places, in this order:
+
+1. The `--api-key <key>` flag on the command.
+2. The `SENDERKIT_API_KEY` environment variable.
+3. `~/.senderkit/config.json` — populated by `senderkit login` or `senderkit config set apiKey …`.
+
+For interactive setup, `login` is the easiest path. It prompts, verifies the
+key against the API by listing your templates, and saves it with `0600`
+permissions:
+
+```bash
+senderkit login
+# SenderKit API key: sk_test_…
+# ✓ Saved API key to /Users/you/.senderkit/config.json
+```
+
+For non-interactive setup (CI provisioning, dotfiles), set the value directly:
+
+```bash
+senderkit config set apiKey sk_test_…
+senderkit config list  # API key shown masked, e.g. sk_test_xyz…ABCD
+```
+
+Or pass it inline for one-off scripts:
+
+```bash
+SENDERKIT_API_KEY=sk_test_… senderkit templates list
+senderkit templates list --api-key sk_test_…
+```
+
+<Note>
+  Mode (live vs test) is encoded in the key prefix — `sk_live_…` sends real
+  mail; `sk_test_…` synthesizes the full
+  [lifecycle](/concepts/messages) without leaving the building. See
+  [Environments](/concepts/environments).
+</Note>
+
+## Global flags
+
+These work on every command and resolve before the subcommand runs.
+
+<ParamField path="--api-key <key>">
+  API key. Overrides `SENDERKIT_API_KEY` and `~/.senderkit/config.json`.
+</ParamField>
+
+<ParamField path="--base-url <url>">
+  Override the API base URL. Also resolvable via `SENDERKIT_BASE_URL` or
+  `senderkit config set baseUrl …`. Useful for staging environments and
+  self-hosted deployments.
+</ParamField>
+
+<ParamField path="--json">
+  Print the raw JSON response instead of human-readable text. The shape matches
+  the [REST response](/api-reference/introduction) for the underlying endpoint,
+  so it pipes cleanly into `jq` or a downstream script.
+</ParamField>
+
+<ParamField path="--version">
+  Print the CLI version and exit.
+</ParamField>
+
+<ParamField path="--help">
+  Print contextual help. Works at any level — `senderkit --help`,
+  `senderkit messages list --help`.
+</ParamField>
+
+## Managing config
+
+`~/.senderkit/config.json` stores `apiKey` and `baseUrl`. Three subcommands
+manage it:
+
+```bash
+senderkit config set apiKey sk_test_…
+senderkit config set baseUrl https://api.staging.senderkit.com
+senderkit config get apiKey   # printed masked
+senderkit config list         # prints all values, apiKey masked
+```
+
+The file is written with `0600` permissions so other users on the machine can't
+read your key.
+
+## Output and exit codes
+
+The CLI is built for both humans and pipelines:
+
+- **Human mode (default)** prints aligned tables for list commands and `key:
+  value` blocks for object responses, with a green `✓` on successful sends.
+- **JSON mode (`--json`)** prints the raw SDK response — same shape as the
+  [REST API](/api-reference/introduction).
+- **Exit codes:** `0` on success, `1` on any error (auth failure, validation,
+  rate limit, network, anything else). Errors print to `stderr`; results print
+  to `stdout`, so you can pipe results without losing error visibility.
+
+```bash
+senderkit templates list --json | jq '.[].slug'
+senderkit messages list --status failed --json > failed.json
+```
+
+## MCP server
+
+The CLI also bundles the SenderKit MCP server, exposed as `senderkit mcp` and
+`senderkit mcp install`. That surface is documented separately — see
+[MCP Server](/mcp/overview).
+
+<CardGroup cols={2}>
+  <Card title="send" icon="paper-plane" href="/cli/send">
+    Fire a template or raw send from the terminal.
+  </Card>
+  <Card title="templates" icon="file-lines" href="/cli/templates">
+    List and inspect templates by slug.
+  </Card>
+  <Card title="messages" icon="list-check" href="/cli/messages">
+    Query message history and filter by status, channel, or template.
+  </Card>
+  <Card title="MCP Server" icon="plug" href="/mcp/overview">
+    Hand the same operations to Claude, Cursor, and other AI clients.
+  </Card>
+</CardGroup>
