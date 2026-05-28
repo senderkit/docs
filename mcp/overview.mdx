@@ -4,8 +4,60 @@ description: "Use SenderKit from AI agents over the Model Context Protocol."
 icon: 'robot'
 ---
 
-This page introduces the SenderKit MCP server, which lets AI assistants send
-messages and inspect templates and delivery history over the Model Context
-Protocol. The server is available two ways — hosted by SenderKit at `/mcp` and
-bundled in `@senderkit/cli` — both authenticated with the same API keys. Details to
-be expanded from the MCP source.
+The SenderKit MCP server lets an AI assistant — Claude, Cursor, Windsurf, or any
+other [MCP-compatible client](/mcp/installation) — operate SenderKit through tool
+calls. Once connected, an agent can send a test notification, scaffold and edit
+templates, and inspect message delivery without ever leaving your editor or chat.
+
+## Who it's for
+
+- **Developers using AI coding tools.** Wire SenderKit into your assistant once;
+  after that, "send the welcome email to user@example.com" is one line in the chat.
+- **Agent authors.** Building an autonomous workflow that needs to send
+  notifications? Point it at SenderKit over MCP and let it dispatch through the
+  same templates and key prefixes your app already uses.
+
+## What you can do with it
+
+The server exposes a small surface that mirrors SenderKit's main operations:
+
+- **Send** a templated message, or [raw inline content](/concepts/sending#template-sends-and-raw-sends),
+  to one recipient.
+- **List and inspect [templates](/concepts/templates)** by slug.
+- **Query and cancel [messages](/concepts/messages)** — list recent sends with
+  filters, fetch a single message, or cancel a still-pending one.
+
+All in [test mode by default](/concepts/environments) — use an `sk_test_` key and
+your assistant can experiment without anything leaving the building.
+
+## How it runs
+
+You can connect to the server two ways, both authenticated with the same
+SenderKit API key:
+
+<CardGroup cols={2}>
+  <Card title="Hosted" icon="cloud">
+    Point your client at `https://mcp.senderkit.com/mcp`. SenderKit runs the
+    server. Auth is `Authorization: Bearer <key>`.
+  </Card>
+  <Card title="Local" icon="terminal">
+    Run `senderkit mcp` from the [CLI](/cli/installation) — a stdio MCP server
+    that reads `SENDERKIT_API_KEY` from your environment.
+  </Card>
+</CardGroup>
+
+Both expose the same tools and behave identically; the only difference is where
+the server runs. Use hosted if you don't want to install anything; use local if
+you'd rather skip the network hop and your AI client already runs on your machine.
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="bolt" href="/mcp/quickstart">
+    Connect Claude Code and make your first tool call.
+  </Card>
+  <Card title="Installation" icon="plug" href="/mcp/installation">
+    Config for every supported client.
+  </Card>
+  <Card title="Tools" icon="screwdriver-wrench" href="/mcp/tools">
+    The full surface, parameter by parameter.
+  </Card>
+</CardGroup>

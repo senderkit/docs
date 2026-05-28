@@ -4,21 +4,398 @@ description: "Configure the SenderKit MCP server in your AI client."
 icon: 'plug'
 ---
 
-This page documents configuring the SenderKit MCP server in popular clients. The
-tabs below are placeholders; exact configuration will be filled in from the CLI's
-MCP install flow.
+This page covers connecting every supported client to SenderKit's MCP server,
+both ways: pointing at the hosted endpoint at `https://mcp.senderkit.com/mcp`
+(recommended — nothing to install) or running the local stdio server bundled
+in the [CLI](/cli/installation).
+
+## Prerequisites
+
+- A SenderKit API key. Create one in the
+  [dashboard](https://senderkit.com/app/dashboard); see [Authentication](/authentication).
+  The same key prefix (`sk_live_` / `sk_test_`) controls live vs test mode.
+- For local stdio mode: [`@senderkit/cli`](/cli/installation) installed and on
+  your `PATH`.
+
+## Hosted or local?
+
+|                  | Hosted                              | Local stdio                       |
+| ---------------- | ----------------------------------- | --------------------------------- |
+| Endpoint         | `https://mcp.senderkit.com/mcp`     | `senderkit mcp` subprocess        |
+| Auth             | `Authorization: Bearer <key>` header | `SENDERKIT_API_KEY` env var       |
+| Network hop      | yes                                 | none                              |
+| Requires Node.js | no                                  | yes (via the CLI)                 |
+
+The tools and behavior are identical. Pick whichever fits your setup.
+
+## Auto-install with the CLI
+
+If you have the CLI installed, `senderkit mcp install` writes the config for
+you. By default it targets every supported client it detects on your machine;
+pass `--client <name>` to target one.
+
+```bash
+# Local stdio config for every detected client
+senderkit mcp install
+
+# Hosted (uses the API key from --api-key, $SENDERKIT_API_KEY, or `senderkit login`)
+senderkit mcp install --remote
+
+# Target one client
+senderkit mcp install --client cursor
+
+# Print the config to stdout instead of writing
+senderkit mcp install --client claude-desktop --print
+```
+
+Supported `--client` values: `claude-code`, `claude-desktop`, `cursor`,
+`windsurf`, `vscode`, `zed`, `codex`, `opencode`, or `all` (the default).
+
+## Manual configuration
+
+If you'd rather edit configuration files by hand, the tabs below show the exact
+block per client.
 
 <Tabs>
-  <Tab title="Claude Desktop">
-    {/* TODO: config from senderkit-sdk/packages/cli/src/mcp/install.ts */}
-    Configuration steps for Claude Desktop will go here.
-  </Tab>
-  <Tab title="Cursor">
-    {/* TODO: config from senderkit-sdk/packages/cli/src/mcp/install.ts */}
-    Configuration steps for Cursor will go here.
-  </Tab>
   <Tab title="Claude Code">
-    {/* TODO: config from senderkit-sdk/packages/cli/src/mcp/install.ts */}
-    Configuration steps for Claude Code will go here.
+    Use `claude mcp add` — it writes to `~/.claude.json` under
+    `projects.<cwd>.mcpServers.senderkit` (local scope) or the top-level
+    `mcpServers.senderkit` (user scope).
+
+    <CodeGroup>
+      ```bash Hosted
+      claude mcp add --transport http --scope user senderkit \
+        https://mcp.senderkit.com/mcp \
+        --header "Authorization: Bearer $SENDERKIT_API_KEY"
+      ```
+
+      ```bash Local stdio
+      claude mcp add --scope user \
+        --env SENDERKIT_API_KEY=$SENDERKIT_API_KEY \
+        senderkit -- senderkit mcp
+      ```
+    </CodeGroup>
+
+    Verify with `claude mcp list`, or `/mcp` from inside a Claude Code session.
+  </Tab>
+
+  <Tab title="Claude Desktop">
+    Edit `claude_desktop_config.json`. Open it via **Claude → Settings →
+    Developer → Edit Config**.
+
+    Location:
+    - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+    - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+    Claude Desktop only speaks stdio, so the hosted variant bridges through
+    [`mcp-remote`](https://www.npmjs.com/package/mcp-remote).
+
+    <CodeGroup>
+      ```json Hosted (via mcp-remote)
+      {
+        "mcpServers": {
+          "senderkit": {
+            "command": "npx",
+            "args": [
+              "-y",
+              "mcp-remote",
+              "https://mcp.senderkit.com/mcp",
+              "--header",
+              "Authorization: Bearer ${SENDERKIT_API_KEY}"
+            ]
+          }
+        }
+      }
+      ```
+
+      ```json Local stdio
+      {
+        "mcpServers": {
+          "senderkit": {
+            "command": "senderkit",
+            "args": ["mcp"],
+            "env": { "SENDERKIT_API_KEY": "sk_test_…" }
+          }
+        }
+      }
+      ```
+    </CodeGroup>
+
+    Fully quit Claude Desktop and reopen it for the change to take effect —
+    closing the window isn't enough.
+  </Tab>
+
+  <Tab title="Cursor">
+    Edit `~/.cursor/mcp.json`.
+
+    <CodeGroup>
+      ```json Hosted
+      {
+        "mcpServers": {
+          "senderkit": {
+            "url": "https://mcp.senderkit.com/mcp",
+            "headers": {
+              "Authorization": "Bearer ${SENDERKIT_API_KEY}"
+            }
+          }
+        }
+      }
+      ```
+
+      ```json Local stdio
+      {
+        "mcpServers": {
+          "senderkit": {
+            "command": "senderkit",
+            "args": ["mcp"],
+            "env": { "SENDERKIT_API_KEY": "sk_test_…" }
+          }
+        }
+      }
+      ```
+    </CodeGroup>
+  </Tab>
+
+  <Tab title="Windsurf">
+    Edit `~/.codeium/windsurf/mcp_config.json`. Windsurf's native remote MCP
+    support is uneven, so the hosted variant bridges through `mcp-remote`.
+
+    <CodeGroup>
+      ```json Hosted (via mcp-remote)
+      {
+        "mcpServers": {
+          "senderkit": {
+            "command": "npx",
+            "args": [
+              "-y",
+              "mcp-remote",
+              "https://mcp.senderkit.com/mcp",
+              "--header",
+              "Authorization: Bearer ${SENDERKIT_API_KEY}"
+            ]
+          }
+        }
+      }
+      ```
+
+      ```json Local stdio
+      {
+        "mcpServers": {
+          "senderkit": {
+            "command": "senderkit",
+            "args": ["mcp"],
+            "env": { "SENDERKIT_API_KEY": "sk_test_…" }
+          }
+        }
+      }
+      ```
+    </CodeGroup>
+  </Tab>
+
+  <Tab title="VS Code">
+    Edit `mcp.json` in your VS Code user directory.
+
+    Location:
+    - macOS: `~/Library/Application Support/Code/User/mcp.json`
+    - Windows: `%APPDATA%\Code\User\mcp.json`
+    - Linux: `~/.config/Code/User/mcp.json`
+
+    VS Code uses the top-level key `servers` (not `mcpServers`) and requires a
+    `type` field.
+
+    <CodeGroup>
+      ```json Hosted
+      {
+        "servers": {
+          "senderkit": {
+            "type": "http",
+            "url": "https://mcp.senderkit.com/mcp",
+            "headers": {
+              "Authorization": "Bearer ${SENDERKIT_API_KEY}"
+            }
+          }
+        }
+      }
+      ```
+
+      ```json Local stdio
+      {
+        "servers": {
+          "senderkit": {
+            "type": "stdio",
+            "command": "senderkit",
+            "args": ["mcp"],
+            "env": { "SENDERKIT_API_KEY": "sk_test_…" }
+          }
+        }
+      }
+      ```
+    </CodeGroup>
+  </Tab>
+
+  <Tab title="Zed">
+    Edit `~/.config/zed/settings.json` — Zed calls them `context_servers`.
+
+    <CodeGroup>
+      ```json Hosted
+      {
+        "context_servers": {
+          "senderkit": {
+            "url": "https://mcp.senderkit.com/mcp",
+            "headers": {
+              "Authorization": "Bearer ${SENDERKIT_API_KEY}"
+            }
+          }
+        }
+      }
+      ```
+
+      ```json Local stdio
+      {
+        "context_servers": {
+          "senderkit": {
+            "command": "senderkit",
+            "args": ["mcp"],
+            "env": { "SENDERKIT_API_KEY": "sk_test_…" }
+          }
+        }
+      }
+      ```
+    </CodeGroup>
+  </Tab>
+
+  <Tab title="Codex">
+    Edit `~/.codex/config.toml`. Native remote MCP in Codex is still
+    experimental, so the hosted variant bridges through `mcp-remote`.
+
+    <CodeGroup>
+      ```toml Hosted (via mcp-remote)
+      [mcp_servers.senderkit]
+      command = "npx"
+      args = [
+        "-y",
+        "mcp-remote",
+        "https://mcp.senderkit.com/mcp",
+        "--header",
+        "Authorization: Bearer ${SENDERKIT_API_KEY}",
+      ]
+      ```
+
+      ```toml Local stdio
+      [mcp_servers.senderkit]
+      command = "senderkit"
+      args = ["mcp"]
+
+      [mcp_servers.senderkit.env]
+      SENDERKIT_API_KEY = "sk_test_…"
+      ```
+    </CodeGroup>
+  </Tab>
+
+  <Tab title="opencode">
+    Edit `~/.config/opencode/opencode.json`.
+
+    <CodeGroup>
+      ```json Hosted
+      {
+        "mcp": {
+          "senderkit": {
+            "type": "remote",
+            "url": "https://mcp.senderkit.com/mcp",
+            "enabled": true,
+            "headers": {
+              "Authorization": "Bearer ${SENDERKIT_API_KEY}"
+            }
+          }
+        }
+      }
+      ```
+
+      ```json Local stdio
+      {
+        "mcp": {
+          "senderkit": {
+            "type": "local",
+            "command": ["senderkit", "mcp"],
+            "enabled": true,
+            "environment": { "SENDERKIT_API_KEY": "sk_test_…" }
+          }
+        }
+      }
+      ```
+    </CodeGroup>
   </Tab>
 </Tabs>
+
+## Self-hosting the HTTP server
+
+If you'd rather not rely on the hosted endpoint, the CLI exposes the same
+server over Streamable HTTP. Point your client at it the same way you'd point
+at the hosted URL.
+
+```bash
+# Listens on http://localhost:3000/mcp
+senderkit mcp --http --port 3000
+```
+
+Each request still needs `Authorization: Bearer <key>`. The server is
+stateless: every request authenticates independently, so a single process can
+serve multiple users or workspaces.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="The server doesn't appear in my client.">
+    Most clients only load MCP servers at startup. Fully quit and restart the
+    client after editing config. For Claude Code, run `/mcp` to see the live
+    list; for Claude Desktop, restart from the menu rather than just closing
+    the window.
+  </Accordion>
+
+  <Accordion title="The client reports an authentication failure.">
+    For **hosted**, check that the `Authorization` header value is exactly
+    `Bearer sk_live_…` or `Bearer sk_test_…` — no extra whitespace, no missing
+    `Bearer ` prefix. The server returns `401` for any missing or unrecognized
+    key. Revoked keys also return `401`; create a new key in the
+    [dashboard](https://senderkit.com/app/dashboard).
+
+    For **local stdio**, the server reads `SENDERKIT_API_KEY` from the
+    environment passed to the subprocess (the `env` block in your client
+    config, or your shell if you launch the client from a terminal). If the
+    key isn't set, `senderkit mcp` exits at startup with
+    `No SenderKit API key found`.
+  </Accordion>
+
+  <Accordion title="`senderkit: command not found` or `spawn senderkit ENOENT`.">
+    The local stdio config calls the `senderkit` binary directly. Install the
+    CLI globally (`npm install -g @senderkit/cli`) and confirm it's on your
+    `PATH` with `which senderkit`. If your client launches outside your
+    shell's `PATH` (Claude Desktop on macOS often does), use the absolute path
+    in the `command` field — e.g. `/usr/local/bin/senderkit` — or switch to
+    the hosted variant.
+  </Accordion>
+
+  <Accordion title="Hosted setup fails through `mcp-remote`.">
+    `mcp-remote` requires Node.js 18+. Confirm with `node --version`. If `npx`
+    is missing entirely, install Node from
+    [nodejs.org](https://nodejs.org/), or switch to a client with native
+    remote MCP support (Claude Code, Cursor, VS Code, Zed, opencode).
+  </Accordion>
+
+  <Accordion title="The agent can see tools but every call returns an error.">
+    Look at the tool's error text — the server returns structured messages for
+    invalid input (`invalid_request: …`), missing templates
+    (`template_not_found: …`), rate limits (`rate_limited: …`), and 401s. The
+    shape matches the [REST API](/api-reference/introduction), so anything in
+    the API troubleshooting guide applies.
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/mcp/quickstart">
+    The fastest path: Claude Code, hosted, in five minutes.
+  </Card>
+  <Card title="Tools" icon="screwdriver-wrench" href="/mcp/tools">
+    The full surface, parameter by parameter.
+  </Card>
+</CardGroup>

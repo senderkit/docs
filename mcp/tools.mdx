@@ -1,11 +1,244 @@
 ---
 title: "Tools"
-description: "The MCP tools SenderKit exposes to AI agents."
+description: "Every MCP tool the SenderKit server exposes."
 icon: 'screwdriver-wrench'
 ---
 
-This page documents the tools the SenderKit MCP server exposes — for sending
-messages and inspecting templates and message history. Tool names, parameters, and
-return shapes will be documented directly from the source; none are invented here.
+The SenderKit MCP server exposes seven tools, identical across the hosted
+endpoint and the local stdio server. Tool names are prefixed with `senderkit_`
+so they don't collide with other servers in a multi-server setup.
 
-{/* TODO: read tool definitions from senderkit-sdk/packages/cli/src/mcp/server.ts and senderkit-app/lib/mcp/ */}
+No MCP prompts or resources are exposed — tools only.
+
+## Sending
+
+### `senderkit_send`
+
+Send a templated message to a recipient. Dispatches a real message; live vs
+test mode is determined by the API key prefix (`sk_live_` / `sk_test_`).
+
+The most common tool — an agent uses this when you ask it to "send the welcome
+template" or "email a notice to user@example.com". Mirrors the
+[`POST /v1/send`](/api-reference/introduction) endpoint.
+
+<ParamField path="template" type="string" required>
+  Template slug, e.g. `"welcome"`. See [Templates](/concepts/templates).
+</ParamField>
+<ParamField path="to" type="string" required>
+  Recipient address — email, phone number, or push token.
+</ParamField>
+<ParamField path="vars" type="object">
+  Template [variables](/concepts/variables) as a JSON object.
+</ParamField>
+<ParamField path="channel" type='"email" | "sms" | "push"'>
+  Force a channel. Defaults to the template's primary channel.
+</ParamField>
+<ParamField path="version" type="integer">
+  Pin a specific template [version](/concepts/versioning). Omit to use the
+  currently published version.
+</ParamField>
+<ParamField path="metadata" type="object">
+  Free-form metadata as a JSON object of scalar values. Indexed for filtering
+  in `senderkit_messages_list`.
+</ParamField>
+<ParamField path="scheduledAt" type="string">
+  ISO 8601 timestamp for [scheduled delivery](/concepts/sending#scheduling-sends).
+  Must be in the future, within 30 days.
+</ParamField>
+<ParamField path="idempotencyKey" type="string">
+  [Idempotency key](/concepts/sending#idempotency). Repeat values return the
+  original send instead of duplicating.
+</ParamField>
+<ParamField path="cc" type="string[]">
+  Email-only. Cc recipients.
+</ParamField>
+<ParamField path="bcc" type="string[]">
+  Email-only. Bcc recipients.
+</ParamField>
+<ParamField path="replyTo" type="string">
+  Email-only. Reply-To address.
+</ParamField>
+<ParamField path="attachments" type="Attachment[]">
+  Email-only. Up to 10 MB total across all attachments. Each `Attachment` is
+  `{ filename, contentType, content (base64), inline?, contentId? }`.
+</ParamField>
+
+### `senderkit_send_raw`
+
+Send inline content without a registered template. Dispatches a real message;
+live vs test mode is determined by the API key prefix.
+
+Useful for one-off sends an agent constructs in the moment — e.g. "draft and
+send a status update to this list." See
+[Template sends and raw sends](/concepts/sending#template-sends-and-raw-sends).
+
+<ParamField path="channel" type='"email" | "sms" | "push"' required>
+  The channel to send on.
+</ParamField>
+<ParamField path="to" type="string" required>
+  Recipient address.
+</ParamField>
+<ParamField path="subject" type="string">
+  Email subject. Required for `channel: "email"`.
+</ParamField>
+<ParamField path="preheader" type="string">
+  Email preheader (the snippet preview some clients show).
+</ParamField>
+<ParamField path="html" type="string">
+  Email HTML body. Required for `channel: "email"`.
+</ParamField>
+<ParamField path="text" type="string">
+  Email plain-text body.
+</ParamField>
+<ParamField path="from" type="string">
+  Email from-address override.
+</ParamField>
+<ParamField path="body" type="string">
+  Message body. Required for `channel: "sms"` and `channel: "push"`.
+</ParamField>
+<ParamField path="title" type="string">
+  Push notification title. Required for `channel: "push"`.
+</ParamField>
+<ParamField path="badge" type="integer">
+  Push badge count.
+</ParamField>
+<ParamField path="sound" type="string">
+  Push notification sound.
+</ParamField>
+<ParamField path="pushData" type="object">
+  Push data payload as a JSON object of string values.
+</ParamField>
+<ParamField path="vars" type="object">
+  Variables for interpolation. Only applied when `interpolate: true`.
+</ParamField>
+<ParamField path="interpolate" type="boolean">
+  Run server-side variable substitution over the inline content. Defaults to
+  `false` (content delivered verbatim).
+</ParamField>
+<ParamField path="metadata" type="object">
+  Free-form metadata.
+</ParamField>
+<ParamField path="scheduledAt" type="string">
+  ISO 8601 timestamp for scheduled delivery.
+</ParamField>
+<ParamField path="idempotencyKey" type="string">
+  Idempotency key.
+</ParamField>
+<ParamField path="cc" type="string[]">
+  Email-only. Cc recipients.
+</ParamField>
+<ParamField path="bcc" type="string[]">
+  Email-only. Bcc recipients.
+</ParamField>
+<ParamField path="replyTo" type="string">
+  Email-only. Reply-To address.
+</ParamField>
+<ParamField path="attachments" type="Attachment[]">
+  Email-only. Same shape as `senderkit_send`.
+</ParamField>
+
+## Templates
+
+### `senderkit_templates_list`
+
+List available templates. No parameters.
+
+Use when the agent needs to discover what's available before sending — e.g.
+asking "which templates exist?" — or to confirm a slug before referencing it.
+Mirrors `GET /v1/templates`. See [Templates](/concepts/templates).
+
+### `senderkit_templates_get`
+
+Fetch a single template by slug.
+
+Use to inspect a template's current state — its channel, status, and currently
+published version. Mirrors `GET /v1/templates/{slug}`.
+
+<ParamField path="slug" type="string" required>
+  Template slug, e.g. `"welcome"`.
+</ParamField>
+
+## Messages
+
+### `senderkit_messages_list`
+
+List messages, optionally filtered.
+
+The agent's window into [message history](/concepts/messages). Use it to answer
+"did the welcome email to user@example.com go through?" or "show me recent
+failures." Mirrors `GET /v1/messages`.
+
+<ParamField path="limit" type="integer">
+  Max messages to return.
+</ParamField>
+<ParamField path="cursor" type="string">
+  Pagination cursor from a previous response.
+</ParamField>
+<ParamField path="status" type="string">
+  Filter by [status](/concepts/messages#the-message-lifecycle) — `"delivered"`,
+  `"failed"`, `"queued"`, etc.
+</ParamField>
+<ParamField path="channel" type='"email" | "sms" | "push"'>
+  Filter by channel.
+</ParamField>
+<ParamField path="template" type="string">
+  Filter by template slug.
+</ParamField>
+<ParamField path="metadata" type="object">
+  Filter by metadata; every key/value must match (jsonb containment).
+</ParamField>
+
+### `senderkit_messages_get`
+
+Fetch a single message by ID.
+
+Use to inspect the full record for one send — its current status, the
+provider's response, and the timeline of events. Mirrors
+`GET /v1/messages/{id}`.
+
+<ParamField path="id" type="string" required>
+  Public message id, e.g. `"msg_…"`.
+</ParamField>
+
+### `senderkit_cancel_message`
+
+Cancel a still-pending (scheduled or queued) message by ID.
+
+Use to abort a [scheduled send](/concepts/sending#scheduling-sends) before its
+fire time, or pull back a message that hasn't yet been handed to a provider.
+Only `scheduled` and `queued` messages are cancelable — anything later returns
+a `409`, since delivery once started isn't reversible. Mirrors
+`DELETE /v1/messages/{id}`.
+
+<ParamField path="id" type="string" required>
+  Public message id, e.g. `"msg_…"`.
+</ParamField>
+
+## Errors
+
+Tool failures come back as MCP errors with a single text message. The shape:
+
+- **Validation** — `invalid_request: <field> <message>`. A missing required
+  field, wrong type, or invalid ISO timestamp.
+- **Domain** — `<code>: <message>` from the underlying API. e.g.
+  `template_not_found: No template "welcom"`, `rate_limited: Too many requests`.
+- **Auth** — `unauthorized` on a missing or invalid API key.
+
+If your agent isn't doing what you expect, ask it to print the raw tool error.
+The text matches the [REST API's](/api-reference/introduction) `code` /
+`message` pair, so anything in the API troubleshooting guide applies here too.
+
+<CardGroup cols={2}>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    How a send becomes a delivered message.
+  </Card>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    The lifecycle behind every tool response.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    The REST surface backing these tools.
+  </Card>
+  <Card title="Installation" icon="plug" href="/mcp/installation">
+    Connect a client and start calling tools.
+  </Card>
+</CardGroup>

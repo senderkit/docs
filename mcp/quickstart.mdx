@@ -1,23 +1,72 @@
 ---
 title: "Quickstart"
-description: "Connect an AI assistant to SenderKit over MCP in minutes."
+description: "Connect Claude Code to SenderKit over MCP in under five minutes."
 icon: 'bolt'
 ---
 
-This page documents the fastest path to connecting an AI assistant to SenderKit
-over MCP — pointing a client at the server and authenticating with an API key. The
-steps below are scaffolding to be expanded with exact configuration.
+This walkthrough connects [Claude Code](https://code.claude.com/docs/en/mcp) to
+SenderKit and makes your first tool call. The hosted MCP server runs at
+`https://mcp.senderkit.com/mcp`, so there's nothing to install — you just point
+the client at it with your API key. Other clients and the local stdio server are
+covered in [Installation](/mcp/installation).
 
 <Steps>
-  <Step title="Get an API key">
-    Create a key in the dashboard. See [Authentication](/authentication).
+  <Step title="Get a test API key">
+    Create one in the [dashboard](https://senderkit.com/app/dashboard). For this
+    walkthrough, use a key with the `sk_test_` prefix — sends go through the full
+    pipeline but never reach a real provider. See [Authentication](/authentication).
+
+    ```bash
+    export SENDERKIT_API_KEY=sk_test_…
+    ```
   </Step>
-  <Step title="Point your client at the server">
-    Use the hosted server at `/mcp` or run the CLI-bundled server. Client-specific
-    setup is covered in [Installation](/mcp/installation).
+
+  <Step title="Register the server with Claude Code">
+    From your terminal, run:
+
+    ```bash
+    claude mcp add --transport http --scope user senderkit \
+      https://mcp.senderkit.com/mcp \
+      --header "Authorization: Bearer $SENDERKIT_API_KEY"
+    ```
+
+    `--scope user` makes the server available across every Claude Code project,
+    not just the current one. The command writes the configuration into
+    `~/.claude.json`.
   </Step>
-  <Step title="Send from your assistant">
-    Ask the assistant to send a message or list templates using the MCP
-    [tools](/mcp/tools).
+
+  <Step title="Confirm the server is connected">
+    Start Claude Code and run `/mcp`. You should see `senderkit` with a tool
+    count of `7`. If it shows pending for a moment, that's expected — Claude Code
+    waits for the server to advertise its tools.
+  </Step>
+
+  <Step title="Send your first tool call">
+    Ask Claude:
+
+    > Use SenderKit to list my templates.
+
+    Claude calls the `senderkit_templates_list` tool and prints what your
+    workspace has. Then try:
+
+    > Send the welcome template to me@example.com.
+
+    With an `sk_test_` key, the message moves through the full
+    [lifecycle](/concepts/messages) (`queued → rendered → sent → delivered`)
+    without ever touching a provider.
   </Step>
 </Steps>
+
+<Tip>
+  Swap the key prefix to `sk_live_…` when you're ready to send real notifications.
+  The MCP server doesn't change — only the key does.
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="plug" href="/mcp/installation">
+    Config for Claude Desktop, Cursor, Windsurf, and other clients.
+  </Card>
+  <Card title="Tools" icon="screwdriver-wrench" href="/mcp/tools">
+    The full tool surface and every parameter.
+  </Card>
+</CardGroup>
