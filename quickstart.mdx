@@ -86,7 +86,8 @@ send call once and edit the wording later without a redeploy.
 
     `vars` holds your template variables (`{{name}}`, and so on). Sends are
     asynchronous: the call returns `status: "queued"` once SenderKit accepts the
-    message, and delivery happens out of band.
+    message (or `"scheduled"` if you passed a future `scheduledAt`), and delivery
+    happens out of band.
   </Step>
 
   <Step title="What to read next">

@@ -12,10 +12,10 @@ the key to using SenderKit correctly.
 ## Synchronous accept, asynchronous delivery
 
 A send returns `202` almost immediately with a message `id`, a `status` of
-`"queued"`, and `livemode`. That response means **accepted**, not **delivered**.
-SenderKit then renders the template, dispatches to a
-[provider](/concepts/channels-and-providers), and updates the message as the provider
-reports back.
+`"queued"` (or `"scheduled"` if you passed a future `scheduledAt`), and `livemode`.
+That response means **accepted**, not **delivered**. SenderKit then renders the
+template, dispatches to a [provider](/concepts/channels-and-providers), and updates
+the message as the provider reports back.
 
 ```mermaid
 sequenceDiagram
@@ -46,6 +46,25 @@ const result = await senderkit.send({
 
 To find out what happened next, watch the [message](/concepts/messages) — poll
 `GET /v1/messages` or tail the live stream.
+
+## Scheduling sends
+
+Pass a future `scheduledAt` (ISO 8601 string with offset, or a `Date`) to defer
+delivery. The send is accepted immediately with `status: "scheduled"`; SenderKit
+holds the message until the fire time, then dispatches it through the normal
+pipeline.
+
+```ts
+await senderkit.send({
+  template: "trial-ending",
+  to: "user@example.com",
+  scheduledAt: "2026-06-01T09:00:00Z",
+});
+// { id: "msg_…", status: "scheduled", livemode: false }
+```
+
+Constraints: `scheduledAt` must be in the future (with a few seconds of clock-skew
+tolerance) and no more than 30 days out. Omit it to send immediately.
 
 ## Template sends and raw sends
 
