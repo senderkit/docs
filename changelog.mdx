@@ -1,8 +1,62 @@
 ---
 title: "Changelog"
-description: "Notable changes to SenderKit and its client libraries."
+description: "Notable changes to SenderKit's client libraries."
 icon: 'clock-rotate-left'
 ---
 
-This page documents notable changes to SenderKit — the API, SDK, CLI, and MCP
-server. Entries will be added here as releases ship.
+This page tracks releases of SenderKit's developer libraries — the
+[TypeScript SDK](/sdks/typescript), the [CLI](/cli/installation), and the
+[MCP server](/mcp/overview).
+
+<Note>
+  The SenderKit API and dashboard are still pre-launch. Only the client
+  libraries have a public release history today, so that's all this page
+  documents. New entries land here as each library ships a version.
+</Note>
+
+<Update label="May 28, 2026" description="v0.2.0 — initial public release" tags={["SDK", "CLI", "MCP"]}>
+  ## Initial public release
+
+  The first public release of the SenderKit developer libraries. All three
+  libraries are versioned together and published to npm at `0.2.0`.
+
+  ### TypeScript SDK — `@senderkit/sdk@0.2.0`
+
+  - `SenderKit` client with `send()`, `sendRaw()`, and `sendBatch()` for
+    multi-channel delivery (email, SMS, push).
+  - `messages.list()` (with metadata filtering), `messages.get(id)`, and
+    `messages.cancel(id)`.
+  - `templates.list()` and `templates.get(slug)`.
+  - `scheduledAt` on `send` / `sendRaw` for scheduled delivery.
+  - `client.mode` (`"live"` / `"test"`), derived from the API key prefix; the
+    client validates that keys start with `sk_live_` or `sk_test_` at
+    construction.
+  - Typed error hierarchy: `SenderKitApiError`,
+    `SenderKitAuthenticationError`, `SenderKitValidationError`,
+    `SenderKitRateLimitError`, `SenderKitTimeoutError`, and
+    `SenderKitNetworkError`.
+
+  See the [SDK reference](/sdks/typescript) for full usage.
+
+  ### CLI — `@senderkit/cli@0.2.0`
+
+  - `senderkit login` for interactive authentication (API key input is hidden).
+  - `senderkit send` and `senderkit send-raw`.
+  - `senderkit templates list` / `get`.
+  - `senderkit messages list` / `get` / `cancel`.
+  - `--json` flag for structured, machine-readable output (including errors).
+
+  See the [CLI docs](/cli/installation) to get started.
+
+  ### MCP server — bundled in `@senderkit/cli@0.2.0`
+
+  Exposes SenderKit to AI agents over the Model Context Protocol, via the
+  `senderkit mcp` command (stdio and HTTP transports). Tools:
+
+  - `senderkit_send` and `senderkit_send_raw`
+  - `senderkit_templates_list` and `senderkit_templates_get`
+  - `senderkit_messages_list`, `senderkit_messages_get`, and
+    `senderkit_cancel_message`
+
+  See the [MCP overview](/mcp/overview) and [tools reference](/mcp/tools).
+</Update>
