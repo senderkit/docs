@@ -1,102 +1,192 @@
 ---
 title: "Quickstart"
-description: "Send your first transactional message with SenderKit."
+description: "Create a template, send it from your app, then change the copy without a redeploy."
 icon: 'rocket'
 ---
 
-Send a templated message from a Node.js or TypeScript app. The `welcome` template —
-its subject, layout, and copy — lives in the SenderKit dashboard, so you wire up the
-send call once and edit the wording later without a redeploy.
+In about five minutes you'll do the one thing that makes SenderKit different:
+create a message template in the dashboard, wire up a single `send` call, and then
+change the wording from the dashboard — no code change, no redeploy. The subject,
+layout, and copy live outside your repo; your code just names the template and fills
+in the variables.
 
 <Steps>
-  <Step title="Install the SDK">
-    <CodeGroup>
-      ```bash npm
-      npm install @senderkit/sdk
-      ```
+  <Step title="Create your first template">
+    In the [dashboard](https://senderkit.com/app/templates), create an `email`
+    [template](/concepts/templates) with the slug `welcome`. Write a subject and body,
+    and reference dynamic values as [variables](/concepts/variables) with Mustache
+    braces:
 
-      ```bash pnpm
-      pnpm add @senderkit/sdk
-      ```
+    ```text Template copy (in the dashboard editor)
+    Subject: Welcome to Acme, {{name}} 👋
 
-      ```bash yarn
-      yarn add @senderkit/sdk
-      ```
+    Hi {{name}},
 
-      ```bash bun
-      bun add @senderkit/sdk
-      ```
-    </CodeGroup>
-
-    The core SDK has zero runtime dependencies and uses native `fetch` (Node.js 18+).
-  </Step>
-
-  <Step title="Get an API key">
-    Create a key in the [dashboard](https://senderkit.com/app/dashboard). Use an
-    `sk_test_` key while you're wiring things up — test keys never call your
-    providers — and switch to `sk_live_` to send for real. The plaintext is shown
-    once at creation, so copy it then.
-  </Step>
-
-  <Step title="Set the environment variable">
-    ```bash
-    export SENDERKIT_API_KEY="sk_test_..."
+    Thanks for signing up — we're glad you're here.
     ```
 
-    The SDK doesn't read this automatically — you pass it to the constructor (next
-    step). Storing it in the environment keeps the secret out of your source.
+    The slug `welcome` is the stable name your code will send to. Staring at a blank
+    editor? [AI authoring](/concepts/ai-authoring) drafts the subject, layout, and
+    variables from a one-line brief.
+
+    <Tip>
+      You don't need to publish yet. In test mode SenderKit renders your **latest
+      draft**, so you can keep editing copy as you go. Live sends only ever render the
+      [published version](/concepts/versioning).
+    </Tip>
   </Step>
 
-  <Step title="Send a message">
-    <CodeGroup>
-      ```ts Node.js
-      import { SenderKit } from "@senderkit/sdk";
+  <Step title="Get a test API key">
+    Create a key in the [dashboard](https://senderkit.com/app/api-keys). Use an
+    `sk_test_` key while you're wiring things up — test keys never call your providers,
+    so nothing reaches a real inbox — and switch to `sk_live_` to send for real. The
+    plaintext is shown once at creation, so copy it then.
+  </Step>
 
-      const senderkit = new SenderKit({ apiKey: process.env.SENDERKIT_API_KEY! });
+  <Step title="Send it">
+    Reference the template by slug, pass the recipient and `vars`, and send. Pick your
+    surface:
 
-      const result = await senderkit.send({
-        template: "welcome",
-        to: "user@example.com",
-        vars: { name: "Ada" },
-      });
+    <Tabs>
+      <Tab title="TypeScript SDK">
+        Install the SDK:
 
-      console.log(result); // { id: "msg_…", status: "queued", livemode: false }
-      ```
+        <CodeGroup>
+          ```bash npm
+          npm install @senderkit/sdk
+          ```
 
-      ```ts Next.js (route handler)
-      import { NextResponse } from "next/server";
-      import { SenderKit } from "@senderkit/sdk";
+          ```bash pnpm
+          pnpm add @senderkit/sdk
+          ```
 
-      const senderkit = new SenderKit({ apiKey: process.env.SENDERKIT_API_KEY! });
+          ```bash yarn
+          yarn add @senderkit/sdk
+          ```
 
-      export async function POST(req: Request) {
-        const { email, name } = await req.json();
+          ```bash bun
+          bun add @senderkit/sdk
+          ```
+        </CodeGroup>
+
+        Keep your key in the environment (out of source), then create a client and send:
+
+        ```bash
+        export SENDERKIT_API_KEY="sk_test_..."
+        ```
+
+        ```ts
+        import { SenderKit } from "@senderkit/sdk";
+
+        const senderkit = new SenderKit({ apiKey: process.env.SENDERKIT_API_KEY! });
 
         const result = await senderkit.send({
           template: "welcome",
-          to: email,
-          vars: { name: name ?? "there" },
-          idempotencyKey: `welcome:${email}`,
+          to: "user@example.com",
+          vars: { name: "Ada" },
         });
 
-        return NextResponse.json(result, { status: 202 });
-      }
-      ```
-    </CodeGroup>
+        console.log(result); // { id: "msg_…", status: "queued", livemode: false }
+        ```
 
-    `vars` holds your template variables (`{{name}}`, and so on). Sends are
-    asynchronous: the call returns `status: "queued"` once SenderKit accepts the
-    message (or `"scheduled"` if you passed a future `scheduledAt`), and delivery
-    happens out of band.
+        The core SDK has zero runtime dependencies and uses native `fetch` (Node.js 18+).
+        Keep the key server-side — never ship it in a client bundle.
+      </Tab>
+
+      <Tab title="cURL">
+        ```bash
+        curl -X POST https://senderkit.com/api/v1/send \
+          -H "Authorization: Bearer sk_test_..." \
+          -H "Content-Type: application/json" \
+          -d '{
+            "template": "welcome",
+            "to": "user@example.com",
+            "vars": { "name": "Ada" }
+          }'
+        ```
+
+        Returns `202 Accepted`:
+
+        ```json
+        { "id": "msg_…", "status": "queued", "livemode": false }
+        ```
+      </Tab>
+
+      <Tab title="CLI">
+        ```bash
+        npm install -g @senderkit/cli
+        senderkit login          # paste your sk_test_… key when prompted
+        senderkit send welcome user@example.com --vars '{"name":"Ada"}'
+        ```
+
+        ```
+        ✓ Queued message msg_…
+        id:     msg_…
+        status: queued
+        mode:   test
+        ```
+
+        See the full [CLI reference](/cli/send) for options like `--metadata` and
+        `--scheduled-at`.
+      </Tab>
+    </Tabs>
+
+    `vars` fills the `{{name}}` holes in your template. Sends are asynchronous: the call
+    returns `status: "queued"` once SenderKit accepts the message (or `"scheduled"` if you
+    passed a future `scheduledAt`), and delivery happens out of band.
   </Step>
 
-  <Step title="What to read next">
-    - [Authentication](/authentication) — key types, scopes, and the curl contract.
-    - [Messages](/concepts/messages) — track delivery and status after a send.
+  <Step title="Confirm it worked">
+    The send is accepted immediately as `queued` and delivered asynchronously — in test
+    mode without ever touching a real provider, so nothing reaches an inbox. Look the
+    message up in the dashboard, or fetch it by the `id` you got back:
+
+    ```ts
+    const message = await senderkit.messages.get(result.id);
+    console.log(message.status, message.timeline);
+    ```
+
+    You can also list recent sends with `senderkit.messages.list({ template: "welcome" })`
+    (CLI: `senderkit messages list`; HTTP: `GET /v1/messages`). See
+    [Messages](/concepts/messages) for how a send moves from queued to delivered.
+  </Step>
+
+  <Step title="Change the copy — no redeploy">
+    Here's the payoff. Go back to the `welcome` template in the dashboard, change the
+    subject or body, and run the **exact same send again**. The new wording renders —
+    you didn't touch a line of code or ship a deploy.
+
+    That's the whole idea: `send({ template: "welcome" })` is a stable contract, and
+    everything that changes without engineering — the words, the layout, the subject —
+    lives on the dashboard side of it. Anyone on the team can fix a typo without opening
+    your editor.
+  </Step>
+
+  <Step title="Go live">
+    **Publish** the `welcome` template, then swap your key to `sk_live_`. No code changes —
+    SenderKit [derives live vs. test](/concepts/environments) from the key prefix, and your
+    published template renders for real.
   </Step>
 </Steps>
 
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Send a welcome email on signup" icon="hand-wave" href="/guides/welcome-email">
+    Trigger this send automatically from a Clerk or Auth.js event.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Key types, scopes, and the test vs. live model.
+  </Card>
+  <Card title="Templates" icon="file-lines" href="/concepts/templates">
+    Slugs, channels, and why copy edits never touch your code.
+  </Card>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    Track a send from queued to delivered.
+  </Card>
+</CardGroup>
+
 <Note>
-  Prefer the terminal or an AI assistant? `@senderkit/cli` runs the same operations
-  from your shell, and the [MCP server](/mcp/overview) exposes them to AI agents.
+  Working with an AI assistant? The [MCP server](/mcp/overview) exposes these same
+  operations to agents in Claude, Cursor, and other MCP clients.
 </Note>
