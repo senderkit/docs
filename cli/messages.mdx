@@ -43,6 +43,11 @@ senderkit messages list [options]
   Filter by template slug, e.g. `welcome`.
 </ParamField>
 
+<ParamField path="--metadata <json>">
+  Filter by the [metadata](/cli/send) you attached at send time, as a JSON
+  object — e.g. `'{"orderId":"ord_9"}'`. Every key/value pair must match.
+</ParamField>
+
 ### Examples
 
 ```bash
@@ -54,6 +59,9 @@ senderkit messages list --status failed --channel email
 
 # All sends of a specific template
 senderkit messages list --template welcome --limit 100
+
+# Filter by metadata attached at send time
+senderkit messages list --metadata '{"orderId":"ord_9"}'
 
 # Paginate
 senderkit messages list --limit 50
@@ -91,11 +99,63 @@ while :; do
 done
 ```
 
+## `senderkit messages get`
+
+Fetch a single message by its public ID.
+
+```bash
+senderkit messages get <id>
+```
+
+<ParamField path="id" required>
+  Public message ID, e.g. `msg_01HZ…` — the `id` returned by
+  [`send`](/cli/send) or a row from `messages list`.
+</ParamField>
+
+```bash
+senderkit messages get msg_01HZ…
+```
+
+```
+id:        msg_01HZ…
+status:    delivered
+channel:   email
+template:  welcome
+recipient: user@example.com
+createdAt: 2026-05-28T10:14:02Z
+```
+
+Add `--json` for the full message object.
+
+## `senderkit messages cancel`
+
+Cancel a still-pending message. Only `scheduled` or `queued` messages are
+cancelable — once a message has moved past that (e.g. `sent`), the server
+returns a `409` and the command fails.
+
+```bash
+senderkit messages cancel <id>
+```
+
+<ParamField path="id" required>
+  Public message ID of a scheduled or queued message.
+</ParamField>
+
+```bash
+senderkit messages cancel msg_01HZ…
+```
+
+```
+✓ Canceled msg_01HZ…
+id:     msg_01HZ…
+status: canceled
+```
+
 <Note>
-  The CLI doesn't expose a `messages get` or a live tail (`messages tail`) yet.
-  Polling `list` with a filter is the supported pattern; for real-time delivery
-  monitoring use the SSE stream described in the
-  [API Reference](/api-reference/introduction).
+  There's no live tail (`messages tail`) in the CLI. For real-time delivery
+  monitoring, use the SSE stream (`GET /v1/messages?tail=1`) described in the
+  [API Reference](/api-reference/introduction); from the terminal, poll
+  `messages list` with a filter.
 </Note>
 
 <Warning>

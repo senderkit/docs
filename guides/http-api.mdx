@@ -1,0 +1,179 @@
+---
+title: "Integrate over raw HTTP"
+description: "Send and track messages with fetch or curl, no SDK required."
+icon: 'code'
+---
+
+The [TypeScript SDK](/sdks/typescript) is the easiest path on Node, but every
+SenderKit operation is a plain REST call. Reach for raw HTTP when you're on a
+runtime without the SDK, calling from another language, or want to control the
+request yourself. This guide covers the two essentials the SDK otherwise handles
+for you — **idempotency** and **scheduling** — which live in the HTTP layer.
+
+## Base URL & authentication
+
+```
+https://senderkit.com/api
+```
+
+Every request is authenticated with a Bearer API key. The `sk_live_` / `sk_test_`
+prefix selects the environment. See [Authentication](/authentication) for
+creating and managing keys.
+
+```
+Authorization: Bearer sk_live_xxx
+```
+
+## Send a message
+
+`POST /v1/send` accepts the same body shape as the SDK's `send()`. It enqueues
+the message and returns `202` immediately — delivery happens out of band.
+
+<CodeGroup>
+```ts fetch
+const res = await fetch("https://senderkit.com/api/v1/send", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.SENDERKIT_API_KEY}`,
+    "Content-Type": "application/json",
+    // See "Idempotency" below — strongly recommended on every send.
+    "Idempotency-Key": "welcome:usr_123",
+  },
+  body: JSON.stringify({
+    template: "welcome",
+    to: "user@example.com",
+    vars: { name: "Ada" },
+    metadata: { userId: "usr_123" },
+  }),
+});
+
+if (!res.ok) {
+  const { error } = await res.json();
+  throw new Error(`SenderKit ${res.status}: ${error.code} — ${error.message}`);
+}
+
+const result = await res.json();
+// { id: "msg_…", status: "queued", livemode: true }
+```
+
+```bash curl
+curl -X POST https://senderkit.com/api/v1/send \
+  -H "Authorization: Bearer $SENDERKIT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: welcome:usr_123" \
+  -d '{
+    "template": "welcome",
+    "to": "user@example.com",
+    "vars": { "name": "Ada" }
+  }'
+```
+</CodeGroup>
+
+The `202` body is:
+
+<ResponseField name="id" type="string">
+  Message id, e.g. `"msg_…"`. Use it to look the message up later.
+</ResponseField>
+
+<ResponseField name="status" type='"queued" | "scheduled"'>
+  `"scheduled"` when you passed a future `scheduledAt`, otherwise `"queued"`.
+  Don't assume `"queued"` — branch on both.
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean">
+  Whether the request ran against live mode (from the key prefix).
+</ResponseField>
+
+For inline content without a template, send the raw shape (`channel` +
+`content`) to the same endpoint — see the
+[send endpoint](/api-reference/introduction) for the body schema.
+
+## Idempotency
+
+Pass an `Idempotency-Key` **header** so a retried request never sends twice.
+Reusing a key returns the original message instead of creating a new one — make
+it deterministic for the event you're reacting to (e.g. `welcome:usr_123`).
+
+<Note>
+  The SDK attaches this header automatically (auto-generating a key when you
+  don't supply one). Over raw HTTP it's your responsibility — always set it on
+  sends you might retry.
+</Note>
+
+## Schedule for later
+
+Add a `scheduledAt` field to the body — an ISO 8601 timestamp. It must be in
+the future and within 30 days. The response comes back with
+`status: "scheduled"`.
+
+```ts
+body: JSON.stringify({
+  template: "trial-ending",
+  to: "user@example.com",
+  scheduledAt: "2026-06-01T09:00:00Z",
+}),
+```
+
+A scheduled message can be canceled before it sends with
+`DELETE /v1/messages/{id}` (only while `scheduled` or `queued`).
+
+## Handle errors
+
+Non-2xx responses return `{ "error": { "code", "message", "issues"? } }`.
+
+| Status | `code` | Meaning |
+| --- | --- | --- |
+| `400` | `invalid_request` | Malformed JSON or body failed validation (`issues` lists the fields) |
+| `401` | `unauthorized` | Missing, malformed, invalid, or revoked key |
+| `429` | `rate_limited` | Rate limited — a `Retry-After` header gives the cooldown in **seconds** |
+
+On `429`, back off using `Retry-After` and retry with the **same**
+`Idempotency-Key` so you don't duplicate the send. (The SDK does this for you.)
+
+## Track delivery
+
+Sending is asynchronous, so poll `GET /v1/messages` to observe progress.
+Filter and paginate with query params; correlate to your own records via the
+`metadata` you attached at send time.
+
+<CodeGroup>
+```ts fetch
+const url = new URL("https://senderkit.com/api/v1/messages");
+url.searchParams.set("status", "failed");
+url.searchParams.set("limit", "100");
+// Filter by metadata: metadata[key]=value
+url.searchParams.set("metadata[userId]", "usr_123");
+
+const res = await fetch(url, {
+  headers: { Authorization: `Bearer ${process.env.SENDERKIT_API_KEY}` },
+});
+const { data, nextCursor } = await res.json();
+// data: Message[]; nextCursor: string | null (pass back as ?cursor= to page)
+```
+
+```bash curl
+curl -G https://senderkit.com/api/v1/messages \
+  -H "Authorization: Bearer $SENDERKIT_API_KEY" \
+  --data-urlencode "status=failed" \
+  --data-urlencode "limit=100"
+```
+</CodeGroup>
+
+Fetch one message with `GET /v1/messages/{id}`. For real-time monitoring, the
+list endpoint also supports a Server-Sent Events stream with `?tail=1` — see the
+[API Reference](/api-reference/introduction).
+
+<CardGroup cols={2}>
+  <Card title="TypeScript SDK" icon="js" href="/sdks/typescript">
+    Retries, idempotency, and batching handled for you.
+  </Card>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    Why a queued message hasn't been delivered yet.
+  </Card>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    The status lifecycle behind the message log.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Full endpoint, parameter, and schema reference.
+  </Card>
+</CardGroup>

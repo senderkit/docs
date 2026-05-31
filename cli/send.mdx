@@ -68,6 +68,16 @@ senderkit send <template> <to> [options]
   [Sending: Idempotency](/concepts/sending#idempotency).
 </ParamField>
 
+<ParamField path="--reply-to <string>">
+  Reply-To address for the message. Email only.
+</ParamField>
+
+<Note>
+  Cc, Bcc, and attachments are supported by the API but can't be set from the
+  CLI today — use the [TypeScript SDK](/sdks/typescript#send) (`cc`, `bcc`,
+  `attachments` on `send()`) or the [HTTP API](/guides/http-api) for those.
+</Note>
+
 ### Examples
 
 ```bash
@@ -154,6 +164,12 @@ the channel.
 <ParamField path="--from <string>">
   From override, e.g. `"Acme <hello@acme.com>"`. Defaults to your workspace's
   configured sender.
+</ParamField>
+
+<ParamField path="--reply-to <string>">
+  Reply-To address. As with `senderkit send`, Cc/Bcc/attachments aren't
+  available from the CLI — use the [SDK](/sdks/typescript#sendraw) or
+  [HTTP API](/guides/http-api) for those.
 </ParamField>
 
 ### SMS content (`--channel sms`)

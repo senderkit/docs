@@ -9,7 +9,7 @@ The product source code lives in a sibling repo, mounted via `--add-dir ../`.
 - MCP server (bundled in the CLI): `../senderkit-sdk/packages/cli/src/mcp/`
 - MCP server (hosted by the app, served at `/mcp`): `../senderkit-app/lib/mcp/`
 - Main Next.js app: `../senderkit-app/` (routes in `app/`, server logic in `lib/`)
-- OpenAPI spec: `../senderkit-app/openapi.yaml`
+- OpenAPI spec: `../senderkit-app/public/openapi.yaml` (served at `https://senderkit.com/openapi.yaml`; there is no `openapi.yaml` at the app root)
 - Product positioning: `../senderkit-app/README.md`
 
 Note: there is no `@senderkit/react-email` doc coverage and no `packages/mcp`

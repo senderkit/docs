@@ -4,10 +4,12 @@ description: "The official @senderkit/sdk client for Node.js and edge runtimes."
 icon: 'js'
 ---
 
-This page documents `@senderkit/sdk`, the official TypeScript client — installation,
-client construction, and the send and template operations it exposes. It is
-ESM + CJS, zero-dependency, and runs on Node.js 18+ and edge runtimes. Method
-signatures will be filled in from the SDK source.
+`@senderkit/sdk` is the official TypeScript client. It is ESM + CJS,
+zero-dependency, fully typed, and runs on Node.js 18+ and edge runtimes (it uses
+the global `fetch`). It wraps the [REST API](/api-reference/introduction) with
+typed requests, automatic retries with backoff, idempotency, and batch helpers.
+
+## Install
 
 <CodeGroup>
   ```bash npm
@@ -23,4 +25,383 @@ signatures will be filled in from the SDK source.
   ```
 </CodeGroup>
 
-{/* TODO: document client options and methods from senderkit-sdk/packages/sdk/src/ */}
+## Quickstart
+
+```ts
+import { SenderKit } from "@senderkit/sdk";
+
+const senderkit = new SenderKit({ apiKey: process.env.SENDERKIT_API_KEY! });
+
+const result = await senderkit.send({
+  template: "welcome",
+  to: "user@example.com",
+  vars: { name: "Ada" },
+});
+
+console.log(result.id); // "msg_…"
+```
+
+## Client construction
+
+```ts
+new SenderKit(options: SenderKitOptions)
+```
+
+<ParamField path="apiKey" type="string" required>
+  Your API key. Must start with `sk_live_` (live mode) or `sk_test_` (test
+  mode); the constructor throws a `TypeError` otherwise. The SDK does **not**
+  read `process.env` for you — pass it explicitly. See
+  [Authentication](/authentication).
+</ParamField>
+
+<ParamField path="baseUrl" type="string" default="https://senderkit.com/api">
+  Override the API base URL. Useful for pointing at a proxy or a self-hosted
+  gateway.
+</ParamField>
+
+<ParamField path="timeout" type="number" default="30000">
+  Per-request timeout in milliseconds. A timed-out request rejects with
+  `SenderKitTimeoutError` (after retries are exhausted).
+</ParamField>
+
+<ParamField path="maxRetries" type="number" default="2">
+  Max retry attempts for transient failures — network errors, timeouts, `429`,
+  and `5xx` (except `501`). Retries use exponential backoff with jitter and
+  honor a `Retry-After` response header.
+</ParamField>
+
+<ParamField path="fetch" type="typeof fetch">
+  Inject a custom `fetch` implementation — handy for tests or edge runtimes
+  that don't expose a global `fetch`. Defaults to `globalThis.fetch`.
+</ParamField>
+
+<ParamField path="mode" type='"live" | "test"'>
+  Read-only property (not a constructor option). Derived from the API key
+  prefix: `sk_test_…` → `"test"`, anything else → `"live"`. Useful for
+  conditional logging or safety checks: `if (senderkit.mode === "test") …`.
+</ParamField>
+
+## `send()`
+
+Send a [templated message](/concepts/templates), interpolating
+[variables](/concepts/variables) at send time.
+
+```ts
+senderkit.send(request: SendRequest): Promise<SendResponse>
+```
+
+<ParamField path="template" type="string" required>
+  Template slug, e.g. `"welcome"`.
+</ParamField>
+
+<ParamField path="to" type="string" required>
+  Recipient address — email, phone number, or push token.
+</ParamField>
+
+<ParamField path="vars" type="Record<string, unknown>">
+  Template variables. Defaults to `{}`.
+</ParamField>
+
+<ParamField path="channel" type='"email" | "sms" | "push"'>
+  Force a channel. Defaults to the template's primary channel.
+</ParamField>
+
+<ParamField path="version" type="number">
+  Pin a specific template [version](/concepts/versioning). Omit to use the
+  current published version for the environment.
+</ParamField>
+
+<ParamField path="metadata" type="Record<string, string | number | boolean>">
+  Free-form metadata attached to the message. Indexed server-side, so you can
+  later filter with `messages.list({ metadata })`.
+</ParamField>
+
+<ParamField path="scheduledAt" type="string | Date">
+  Defer delivery to a future time — an ISO 8601 string or a `Date`. Must be in
+  the future and within 30 days. The response comes back with
+  `status: "scheduled"`. See [Sending](/concepts/sending).
+</ParamField>
+
+<ParamField path="idempotencyKey" type="string">
+  Idempotency key. **If omitted, the SDK auto-generates one** so a retried
+  request never duplicates a send. Reusing a key returns the original message.
+</ParamField>
+
+<ParamField path="cc" type="string[]">
+  Cc recipients. Email only.
+</ParamField>
+
+<ParamField path="bcc" type="string[]">
+  Bcc recipients. Email only.
+</ParamField>
+
+<ParamField path="replyTo" type="string">
+  Reply-To address. Email only.
+</ParamField>
+
+<ParamField path="attachments" type="Attachment[]">
+  File or inline attachments (email only). Each `Attachment` is
+  `{ filename, contentType, content, inline?, contentId? }` where `content` is
+  **base64-encoded bytes**. Provider caps the total across all attachments at
+  10 MB.
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string">
+  Message id, e.g. `"msg_…"`.
+</ResponseField>
+
+<ResponseField name="status" type='"queued" | "scheduled"'>
+  `"scheduled"` when `scheduledAt` is in the future, otherwise `"queued"`.
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean">
+  Whether the request ran against live mode. Derived from the API key prefix.
+</ResponseField>
+
+```ts
+const res = await senderkit.send({
+  template: "receipt",
+  to: "user@example.com",
+  vars: { amount: "$42.00" },
+  cc: ["accounting@acme.com"],
+  metadata: { orderId: "ord_9" },
+  idempotencyKey: "receipt:ord_9",
+});
+// { id: "msg_…", status: "queued", livemode: true }
+```
+
+## `sendRaw()`
+
+Send inline content without a registered template. The `content` shape is
+selected by `channel`.
+
+```ts
+senderkit.sendRaw(request: SendRawRequest): Promise<SendResponse>
+```
+
+`SendRawRequest` is a discriminated union on `channel`. Shared fields: `to`
+(required), `vars`, `metadata`, `interpolate`, `scheduledAt`, `idempotencyKey`.
+By default content is delivered verbatim — set `interpolate: true` to run
+server-side variable substitution over it. Returns the same `SendResponse` as
+`send()`.
+
+<Tabs>
+  <Tab title="email">
+    `content: RawEmailContent` — `{ subject, html, preheader?, text? }` plus the
+    email envelope fields (`cc`, `bcc`, `replyTo`, `attachments`). A top-level
+    `from?` overrides the workspace sender.
+
+    ```ts
+    await senderkit.sendRaw({
+      channel: "email",
+      to: "user@example.com",
+      from: "Acme <hello@acme.com>",
+      content: {
+        subject: "Welcome, {{name}}",
+        html: "<p>Hello, {{name}}.</p>",
+      },
+      vars: { name: "Ada" },
+      interpolate: true,
+    });
+    ```
+  </Tab>
+  <Tab title="sms">
+    `content: RawSmsContent` — `{ body }`.
+
+    ```ts
+    await senderkit.sendRaw({
+      channel: "sms",
+      to: "+14155551234",
+      content: { body: "Your code is 042195" },
+    });
+    ```
+  </Tab>
+  <Tab title="push">
+    `content: RawPushContent` — `{ title, body, data?, badge?, sound? }`.
+
+    ```ts
+    await senderkit.sendRaw({
+      channel: "push",
+      to: "device_token_…",
+      content: { title: "Order shipped", body: "Tracking attached", badge: 1 },
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## `sendBatch()`
+
+Send many messages with bounded concurrency. Never throws for individual
+failures — each result reports success or the error for that item, so one bad
+recipient doesn't sink the batch.
+
+```ts
+senderkit.sendBatch(
+  requests: Array<SendRequest | SendRawRequest>,
+  options?: BatchSendOptions,
+): Promise<BatchSendResult[]>
+```
+
+<ParamField path="options.concurrency" type="number" default="5">
+  Max parallel in-flight requests.
+</ParamField>
+
+<ParamField path="options.idempotencyKey" type="string">
+  Base key. Each item is sent with `${key}-${index}` (unless the item carries
+  its own `idempotencyKey`).
+</ParamField>
+
+Each `BatchSendResult` is one of:
+
+```ts
+| { ok: true;  index: number; id: string; status: "queued" | "scheduled"; livemode: boolean }
+| { ok: false; index: number; error: SenderKitError }
+```
+
+```ts
+const results = await senderkit.sendBatch(
+  recipients.map((to) => ({ template: "digest", to })),
+  { concurrency: 10, idempotencyKey: "digest:2026-05-31" },
+);
+
+const failed = results.filter((r) => !r.ok);
+if (failed.length) console.error(`${failed.length} sends failed`);
+```
+
+## Templates
+
+```ts
+senderkit.templates.list(): Promise<Template[]>
+senderkit.templates.get(slug: string): Promise<Template>
+```
+
+`list()` returns templates without their version body. `get(slug)` includes
+`currentVersion` (`{ versionNumber, content, variables, publishedAt }`). A
+`Template` has `slug`, `channel`, `description`, `status`, and `updatedAt`.
+
+```ts
+const templates = await senderkit.templates.list();
+const welcome = await senderkit.templates.get("welcome");
+console.log(welcome.currentVersion?.versionNumber);
+```
+
+## Messages
+
+```ts
+senderkit.messages.list(params?: ListMessagesParams): Promise<ListMessagesResponse>
+senderkit.messages.get(id: string): Promise<Message>
+senderkit.messages.cancel(id: string): Promise<CancelMessageResponse>
+```
+
+<ParamField path="params.limit" type="number">
+  Max messages to return. The server applies its own default and cap.
+</ParamField>
+
+<ParamField path="params.cursor" type="string">
+  Pagination cursor — pass the previous response's `nextCursor`.
+</ParamField>
+
+<ParamField path="params.status" type="string">
+  Filter by [status](/concepts/messages), e.g. `"delivered"`, `"failed"`.
+</ParamField>
+
+<ParamField path="params.channel" type='"email" | "sms" | "push"'>
+  Filter by channel.
+</ParamField>
+
+<ParamField path="params.template" type="string">
+  Filter by template slug.
+</ParamField>
+
+<ParamField path="params.metadata" type="Record<string, string | number | boolean>">
+  Filter by metadata attached at send time. Every key/value pair must match.
+</ParamField>
+
+`list()` resolves to `{ data: Message[]; nextCursor: string | null }`.
+`cancel(id)` only works on `scheduled` or `queued` messages — later states
+return a `409` (`SenderKitApiError`) — and resolves to
+`{ id, status: "canceled" }`.
+
+```ts
+// Page through every failed email
+let cursor: string | undefined;
+do {
+  const page = await senderkit.messages.list({
+    status: "failed",
+    channel: "email",
+    cursor,
+    limit: 100,
+  });
+  for (const m of page.data) console.log(m.publicId, m.recipient);
+  cursor = page.nextCursor ?? undefined;
+} while (cursor);
+
+// Cancel a scheduled message
+await senderkit.messages.cancel("msg_…");
+```
+
+## Error handling
+
+Every error extends `SenderKitError`. API errors carry `status`, `code`,
+`issues`, and `requestId` (echoed from the `x-request-id` response header — quote
+it in support requests).
+
+| Class | Thrown when | Extra properties |
+| --- | --- | --- |
+| `SenderKitAuthenticationError` | `401` / `403` — bad or missing key | `status`, `code`, `issues`, `requestId` |
+| `SenderKitValidationError` | `400` / `422` — invalid request | `status`, `code`, `issues`, `requestId` |
+| `SenderKitRateLimitError` | `429` — rate limited | `retryAfter` (**milliseconds**, when the server sent `Retry-After`) + the above |
+| `SenderKitApiError` | any other non-2xx (e.g. `409`, `5xx`) | `status`, `code`, `issues`, `requestId` |
+| `SenderKitTimeoutError` | request exceeded `timeout` | — |
+| `SenderKitNetworkError` | network-level failure | `cause` |
+
+The SDK already retries transient failures (`429`, `5xx`, network, timeout) up
+to `maxRetries` with backoff, so a thrown error means retries were exhausted.
+
+```ts
+import {
+  SenderKit,
+  SenderKitRateLimitError,
+  SenderKitValidationError,
+  SenderKitError,
+} from "@senderkit/sdk";
+
+try {
+  await senderkit.send({ template: "welcome", to: "user@example.com" });
+} catch (err) {
+  if (err instanceof SenderKitValidationError) {
+    console.error("Bad request:", err.issues);
+  } else if (err instanceof SenderKitRateLimitError) {
+    console.error(`Rate limited; retry after ${err.retryAfter}ms`);
+  } else if (err instanceof SenderKitError) {
+    console.error("Send failed:", err.message);
+  } else {
+    throw err;
+  }
+}
+```
+
+## Exports
+
+The package exports the `SenderKit` class, every error class above, the
+`VERSION` constant, and types including `SenderKitOptions`, `SendRequest`,
+`SendRawRequest`, `SendResponse`, `BatchSendOptions`, `BatchSendResult`,
+`Attachment`, `EmailEnvelope`, `Template`, `Message`, `ListMessagesParams`,
+`ListMessagesResponse`, and `CancelMessageResponse`.
+
+<CardGroup cols={2}>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    What a send accepts now and delivers later.
+  </Card>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    The lifecycle behind `messages.list` and `cancel`.
+  </Card>
+  <Card title="HTTP API" icon="code" href="/guides/http-api">
+    Integrate without the SDK, via raw `fetch`.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    The underlying REST endpoints.
+  </Card>
+</CardGroup>

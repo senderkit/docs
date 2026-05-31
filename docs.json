@@ -65,6 +65,7 @@
             "group": "Guides",
             "pages": [
               "guides/overview",
+              "guides/http-api",
               "guides/welcome-email",
               "guides/stripe-lifecycle",
               "guides/team-invites",
