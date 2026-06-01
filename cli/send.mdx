@@ -72,11 +72,21 @@ senderkit send <template> <to> [options]
   Reply-To address for the message. Email only.
 </ParamField>
 
-<Note>
-  Cc, Bcc, and attachments are supported by the API but can't be set from the
-  CLI today — use the [TypeScript SDK](/sdks/typescript#send) (`cc`, `bcc`,
-  `attachments` on `send()`) or the [HTTP API](/guides/http-api) for those.
-</Note>
+<ParamField path="--cc <addresses>">
+  Cc recipients as a comma-separated string (`a@x.com,b@x.com`) or a JSON
+  array (`'["a@x.com","b@x.com"]'`). Email only.
+</ParamField>
+
+<ParamField path="--bcc <addresses>">
+  Bcc recipients — same format as `--cc`. Email only.
+</ParamField>
+
+<ParamField path="--attachments <json>">
+  Attachments as a JSON array, e.g.
+  `'[{"filename":"doc.pdf","contentType":"application/pdf","content":"<base64>"}]'`.
+  Email only. Total decoded size must not exceed 10 MB. For inline attachments,
+  add `"inline": true` and a `"contentId"` value.
+</ParamField>
 
 ### Examples
 
@@ -97,6 +107,12 @@ senderkit send receipt user@example.com \
 # Schedule for later
 senderkit send trial-ending user@example.com \
   --scheduled-at 2026-06-01T09:00:00Z
+
+# Email with cc and an attachment
+senderkit send receipt user@example.com \
+  --vars '{"amount":"$42"}' \
+  --cc "accounting@acme.com" \
+  --attachments '[{"filename":"receipt.pdf","contentType":"application/pdf","content":"<base64>"}]'
 ```
 
 Human-readable output on success:
@@ -167,9 +183,21 @@ the channel.
 </ParamField>
 
 <ParamField path="--reply-to <string>">
-  Reply-To address. As with `senderkit send`, Cc/Bcc/attachments aren't
-  available from the CLI — use the [SDK](/sdks/typescript#sendraw) or
-  [HTTP API](/guides/http-api) for those.
+  Reply-To address.
+</ParamField>
+
+<ParamField path="--cc <addresses>">
+  Cc recipients as a comma-separated string (`a@x.com,b@x.com`) or a JSON
+  array (`'["a@x.com","b@x.com"]'`).
+</ParamField>
+
+<ParamField path="--bcc <addresses>">
+  Bcc recipients — same format as `--cc`.
+</ParamField>
+
+<ParamField path="--attachments <json>">
+  Attachments as a JSON array. Total decoded size must not exceed 10 MB.
+  Each item: `{ filename, contentType, content (base64), inline?, contentId? }`.
 </ParamField>
 
 ### SMS content (`--channel sms`)
@@ -237,6 +265,14 @@ senderkit send-raw user@example.com \
   --html "<p>Welcome, {{name}}.</p>" \
   --vars '{"name":"Ada"}' \
   --interpolate
+
+# Email with cc and attachment
+senderkit send-raw user@example.com \
+  --channel email \
+  --subject "Your invoice" \
+  --html "<p>Please find your invoice attached.</p>" \
+  --cc "finance@acme.com" \
+  --attachments '[{"filename":"invoice.pdf","contentType":"application/pdf","content":"<base64>"}]'
 
 # SMS
 senderkit send-raw +14155551234 \

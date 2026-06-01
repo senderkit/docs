@@ -57,6 +57,35 @@ redeploy, not your time. The send call is a stable contract; everything that can
 change without engineering (the words, the layout, the subject line) lives on the
 other side of that contract.
 
+## Synced blocks
+
+A **synced block** is a named HTML fragment you define once in the dashboard
+(**Blocks** in the sidebar) and insert into any email template via the editor's
+slash menu (**Synced blocks** group). Typical uses: a branded header, a shared
+footer, a legal disclaimer.
+
+When you insert a synced block into a template the editor records a reference, not a
+copy. At send time SenderKit resolves each reference to the block's **current
+content**, so editing a synced block propagates to every email that uses it
+automatically — including already-published templates — without republishing.
+
+Synced blocks share the host template's variable namespace, so `{{vars}}` inside a
+block resolve against the send's variables just like the rest of the template.
+
+```ts
+// Synced blocks are transparent to your code — the send call is unchanged.
+await senderkit.send({
+  template: "receipt",
+  to: "user@example.com",
+  vars: { amount: "$42.00", companyName: "Acme" },
+});
+```
+
+<Note>
+  Per-block variable declarations are not yet supported. Declare all variables
+  used inside a synced block on the parent template.
+</Note>
+
 <CardGroup cols={2}>
   <Card title="Variables" icon="brackets-curly" href="/concepts/variables">
     Fill the dynamic holes in a template at send time.
