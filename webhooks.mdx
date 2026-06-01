@@ -1,0 +1,172 @@
+---
+title: "Webhooks"
+description: "Receive real-time push notifications when async message outcomes resolve."
+icon: 'webhook'
+---
+
+SenderKit sends messages asynchronously. When you call `send()`, you get back a
+message id and `status: queued` immediately — but the outcomes that matter
+(delivery confirmation, bounces, opt-outs) happen seconds or minutes later inside
+the provider. Webhooks let SenderKit push those outcomes to your backend the moment
+they arrive, rather than making you poll.
+
+## Events
+
+Webhooks fire only for asynchronous outcomes you can't predict from the API response.
+Internal pipeline states (`queued`, `rendered`) are not emitted.
+
+| Event | When it fires |
+| --- | --- |
+| `message.sent` | The message was handed off to the email/SMS/push provider |
+| `message.delivered` | The provider confirmed delivery to the recipient |
+| `message.failed` | The message bounced, errored, or exhausted retries |
+| `message.opted_out` | The recipient unsubscribed or marked the message as spam |
+
+## Setting up an endpoint
+
+1. Open **Webhooks** from the sidebar in your dashboard (`/app/webhooks`).
+2. Click **Add endpoint** and paste your HTTPS URL.
+3. Copy the **signing secret** shown after creation — it is displayed only once
+   and cannot be retrieved later.
+4. Choose which events to subscribe to (or leave all selected to receive everything).
+5. Click **Send test event** to confirm your endpoint receives and verifies the
+   payload correctly before going live.
+
+<Note>
+  Webhooks deliver to **live mode** endpoints only. In test mode, delivery is
+  simulated in-process — no real HTTP requests are made to your endpoint.
+</Note>
+
+## Payload
+
+Every event is a `POST` with `Content-Type: application/json`. The body follows a
+consistent envelope:
+
+```json
+{
+  "event": "message.delivered",
+  "deliveryId": "whd_01HZ…",
+  "timestamp": "2026-06-01T12:34:56.789Z",
+  "data": {
+    "id": "msg_01HZ…",
+    "template": "welcome",
+    "channel": "email",
+    "status": "delivered",
+    "livemode": true,
+    "recipient": "user@example.com",
+    "scheduledAt": null,
+    "createdAt": "2026-06-01T12:34:00.000Z"
+  }
+}
+```
+
+The `data` object is a public projection of the message — it omits rendered HTML,
+template variables, and internal provider message IDs.
+
+## Verifying signatures
+
+Every webhook request carries three headers:
+
+| Header | Value |
+| --- | --- |
+| `X-SenderKit-Event` | The event type, e.g. `message.delivered` |
+| `X-SenderKit-Delivery` | Unique delivery ID, e.g. `whd_01HZ…` |
+| `X-SenderKit-Signature` | HMAC-SHA256 signature for replay protection |
+
+The signature format is:
+
+```
+t=<unix-timestamp>,v1=<hmac-hex>
+```
+
+To verify it, compute `HMAC-SHA256(key=<signing-secret>, data="<timestamp>.<raw-body>")`
+and compare with the `v1` value. Reject the event if the signature doesn't match or
+if the timestamp is more than 5 minutes old.
+
+### Verification example (Node.js)
+
+```ts
+import { createHmac, timingSafeEqual } from "crypto";
+
+function verifyWebhook(
+  rawBody: string,
+  signature: string,
+  secret: string,
+  toleranceSec = 300
+): boolean {
+  const parts = Object.fromEntries(
+    signature.split(",").map((p) => p.split("=") as [string, string])
+  );
+  const timestamp = parts["t"];
+  const expected = parts["v1"];
+  if (!timestamp || !expected) return false;
+
+  const age = Math.floor(Date.now() / 1000) - Number(timestamp);
+  if (age > toleranceSec) return false;
+
+  const digest = createHmac("sha256", secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest("hex");
+
+  return timingSafeEqual(Buffer.from(digest), Buffer.from(expected));
+}
+```
+
+<Warning>
+  Always use a constant-time comparison (`timingSafeEqual`) to prevent timing
+  attacks. Never compare signatures with `===`.
+</Warning>
+
+### Express example
+
+```ts
+import express from "express";
+import { verifyWebhook } from "./webhooks"; // your verification helper
+
+const app = express();
+
+app.post(
+  "/webhooks/senderkit",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    const sig = req.headers["x-senderkit-signature"] as string;
+    const secret = process.env.SENDERKIT_WEBHOOK_SECRET!;
+
+    if (!verifyWebhook(req.body.toString(), sig, secret)) {
+      return res.status(400).send("Invalid signature");
+    }
+
+    const { event, data } = JSON.parse(req.body.toString());
+
+    // Acknowledge immediately, process asynchronously
+    res.sendStatus(200);
+
+    if (event === "message.failed") {
+      // e.g. alert on failed delivery
+    }
+  }
+);
+```
+
+## Retries and delivery logs
+
+SenderKit retries failed deliveries automatically on any non-`2xx` response or
+network error. Each endpoint retries independently — a slow or unavailable endpoint
+does not block delivery to your other endpoints.
+
+You can inspect delivery history in the **Webhooks** dashboard. Each endpoint shows
+recent attempts, HTTP status codes, response times, and whether retries are pending.
+
+<Tip>
+  Return `2xx` as quickly as possible and process the event asynchronously in your
+  backend. Long-running handlers risk timing out and triggering a retry.
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    The message lifecycle and the statuses that trigger webhook events.
+  </Card>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    How sends are dispatched and when async outcomes resolve.
+  </Card>
+</CardGroup>
