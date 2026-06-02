@@ -62,6 +62,12 @@
             ]
           },
           {
+            "group": "Webhooks",
+            "pages": [
+              "webhooks"
+            ]
+          },
+          {
             "group": "Guides",
             "pages": [
               "guides/overview",
