@@ -17,13 +17,14 @@ A template is a named, channel-bound definition of a message. It carries:
 
 - A **slug** — the stable identifier your code sends to (`"welcome"`,
   `"password-reset"`). Unique within your workspace.
-- A **channel** — `email`, `sms`, or `push`. Fixed when the template is created; a
-  template targets exactly one channel.
+- A **channel** — `email`, `sms`, `push`, or `web-push`. Fixed when the template is
+  created; a template targets exactly one channel.
 - A **stack of versions** — the actual subject, layout, and copy live in
   [versions](/concepts/versioning), not on the template itself. The template just
   points at whichever version is currently published.
 - A **status** — `draft` until you publish a version, then `active`. Templates can
-  also be `archived`.
+  also be `archived`. Archiving is a hard stop: any API or SDK send to an archived
+  template's slug returns `422 template_archived`.
 
 <Note>
   The template is identity and routing; the content lives in its versions. That
@@ -56,6 +57,31 @@ email's wording is a dashboard edit and a publish — not a code change, not a
 redeploy, not your time. The send call is a stable contract; everything that can
 change without engineering (the words, the layout, the subject line) lives on the
 other side of that contract.
+
+## Managing a template
+
+The template editor's **Settings** tab exposes lifecycle actions beyond the content
+editor:
+
+- **Description** — a free-text label visible in the dashboard.
+- **Provider override** — pin this template to a specific provider connection instead
+  of the workspace default for the channel.
+- **Slug** — rename the template's identifier. Changing the slug breaks any code or
+  integrations that reference the old name, so a warning is shown.
+- **Duplicate** — clones the latest version's content and variables as a new `draft`
+  template (the duplicate button also appears in the editor toolbar). The plan's
+  template cap applies.
+- **Archive / Unarchive** (Danger zone) — archiving marks the template `archived`
+  and immediately stops all new sends to it (`422 template_archived`). The action is
+  reversible — unarchiving restores the template to `draft` — but consequential: any
+  integration still calling the slug will start getting errors. Scheduled messages
+  already queued before archiving are not retroactively cancelled.
+
+<Note>
+  Archiving is the delete-equivalent for templates. Hard deletion is not available
+  by design — archived templates remain visible in the dashboard when you switch the
+  status filter to include `Archived`.
+</Note>
 
 ## Synced blocks
 

@@ -30,7 +30,7 @@ template" or "email a notice to user@example.com". Mirrors the
 <ParamField path="vars" type="object">
   Template [variables](/concepts/variables) as a JSON object.
 </ParamField>
-<ParamField path="channel" type='"email" | "sms" | "push"'>
+<ParamField path="channel" type='"email" | "sms" | "push" | "web-push"'>
   Force a channel. Defaults to the template's primary channel.
 </ParamField>
 <ParamField path="version" type="integer">
@@ -72,11 +72,12 @@ Useful for one-off sends an agent constructs in the moment — e.g. "draft and
 send a status update to this list." See
 [Template sends and raw sends](/concepts/sending#template-sends-and-raw-sends).
 
-<ParamField path="channel" type='"email" | "sms" | "push"' required>
+<ParamField path="channel" type='"email" | "sms" | "push" | "web-push"' required>
   The channel to send on.
 </ParamField>
 <ParamField path="to" type="string" required>
-  Recipient address.
+  Recipient address. For `channel: "web-push"`, the JSON-encoded browser
+  `PushSubscription` (endpoint + `p256dh`/`auth` keys).
 </ParamField>
 <ParamField path="subject" type="string">
   Email subject. Required for `channel: "email"`.
@@ -94,19 +95,26 @@ send a status update to this list." See
   Email from-address override.
 </ParamField>
 <ParamField path="body" type="string">
-  Message body. Required for `channel: "sms"` and `channel: "push"`.
+  Message body. Required for `channel: "sms"`, `channel: "push"`, and
+  `channel: "web-push"`.
 </ParamField>
 <ParamField path="title" type="string">
-  Push notification title. Required for `channel: "push"`.
+  Notification title. Required for `channel: "push"` and `channel: "web-push"`.
 </ParamField>
 <ParamField path="badge" type="integer">
-  Push badge count.
+  Badge count. Push and web-push.
 </ParamField>
 <ParamField path="sound" type="string">
-  Push notification sound.
+  Notification sound name. Push only.
+</ParamField>
+<ParamField path="icon" type="string">
+  Icon URL shown in the notification. Web-push only.
+</ParamField>
+<ParamField path="clickUrl" type="string">
+  URL opened when the user clicks the notification. Web-push only.
 </ParamField>
 <ParamField path="pushData" type="object">
-  Push data payload as a JSON object of string values.
+  Data payload as a JSON object of string values. Push and web-push.
 </ParamField>
 <ParamField path="vars" type="object">
   Variables for interpolation. Only applied when `interpolate: true`.
@@ -178,7 +186,7 @@ failures." Mirrors `GET /v1/messages`.
   Filter by [status](/concepts/messages#the-message-lifecycle) — `"delivered"`,
   `"failed"`, `"queued"`, etc.
 </ParamField>
-<ParamField path="channel" type='"email" | "sms" | "push"'>
+<ParamField path="channel" type='"email" | "sms" | "push" | "web-push"'>
   Filter by channel.
 </ParamField>
 <ParamField path="template" type="string">

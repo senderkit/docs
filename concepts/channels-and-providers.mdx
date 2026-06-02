@@ -1,21 +1,26 @@
 ---
 title: "Channels & Providers"
-description: "Email, SMS, and push delivered through your own provider connections."
+description: "Email, SMS, push, and web push delivered through your own provider connections."
 icon: 'tower-broadcast'
 ---
 
 Delivery in SenderKit has two layers. A **channel** is the kind of message — email,
-SMS, or push. A **provider** is the service that actually delivers it — Postmark,
-Twilio, APNs, and so on. You build templates against channels; SenderKit routes each
-send to the right provider behind a single interface.
+SMS, push, or web push. A **provider** is the service that actually delivers it —
+Postmark, Twilio, APNs, and so on. You build templates against channels; SenderKit
+routes each send to the right provider behind a single interface.
 
 ## Channels
 
-SenderKit supports three channels:
+SenderKit supports four channels:
 
 - **`email`**
 - **`sms`**
-- **`push`**
+- **`push`** — mobile push (APNs / FCM / Expo)
+- **`web-push`** — browser notifications via the Web Push Protocol + VAPID
+
+`push` and `web-push` are distinct channels. They differ in recipient format,
+credentials, and payload shape, so each has its own provider connection. Both can be
+active in a workspace simultaneously.
 
 A [template](/concepts/templates) targets exactly one channel, fixed when it's
 created. A send goes out on that channel; for [raw sends](/concepts/sending) you name
@@ -30,6 +35,13 @@ You connect your own provider accounts in the dashboard. SenderKit supports:
 | `email` | Postmark, SendGrid, Amazon SES, Mailgun, SparkPost |
 | `sms` | Twilio, Amazon SNS, Vonage, MessageBird |
 | `push` | APNs, FCM, Expo |
+| `web-push` | VAPID (Web Push Protocol — no third-party service needed) |
+
+For `web-push`, connect a VAPID keypair in the dashboard (public key + private key +
+contact email). The recipient of each send is the JSON-encoded browser
+`PushSubscription` object (endpoint + `p256dh`/`auth` keys) — your application
+stores these after the user grants permission, then passes the JSON string as `to` on
+each send.
 
 Credentials are encrypted at rest. Each channel has one **default** connection, and a
 template can override that default to use a specific connection.
