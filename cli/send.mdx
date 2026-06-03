@@ -40,7 +40,7 @@ senderkit send <template> <to> [options]
   Substituted into the template's [variable](/concepts/variables) holes.
 </ParamField>
 
-<ParamField path="--channel <email|sms|push>">
+<ParamField path="--channel <email|sms|push|web-push>">
   Force a channel. Defaults to the template's primary channel — only set this
   for multi-channel templates.
 </ParamField>
@@ -141,7 +141,7 @@ that don't warrant a template, or for testing provider configuration before you
 move copy into the dashboard.
 
 ```bash
-senderkit send-raw <to> --channel <email|sms|push> [content options]
+senderkit send-raw <to> --channel <email|sms|push|web-push> [content options]
 ```
 
 `--channel` selects the content shape; the required content options depend on
@@ -150,12 +150,13 @@ the channel.
 ### Arguments
 
 <ParamField path="to" required>
-  Recipient address — email, phone number, or push token.
+  Recipient address — email, phone number, push token, or (for `web-push`) the
+  JSON-encoded browser `PushSubscription` object (endpoint + `p256dh`/`auth` keys).
 </ParamField>
 
 ### Required option
 
-<ParamField path="--channel <email|sms|push>" required>
+<ParamField path="--channel <email|sms|push|web-push>" required>
   Selects the content shape. Required on every call.
 </ParamField>
 
@@ -229,6 +230,33 @@ the channel.
   e.g. `'{"deeplink":"app://x"}'`.
 </ParamField>
 
+### Web Push content (`--channel web-push`)
+
+<ParamField path="--title <string>" required>
+  Notification title.
+</ParamField>
+
+<ParamField path="--body <string>" required>
+  Notification body.
+</ParamField>
+
+<ParamField path="--icon <url>">
+  Icon URL shown in the notification.
+</ParamField>
+
+<ParamField path="--click-url <url>">
+  URL opened when the user clicks the notification.
+</ParamField>
+
+<ParamField path="--badge <number>">
+  Badge count.
+</ParamField>
+
+<ParamField path="--push-data <json>">
+  Data payload as a JSON object of strings — available to the service worker
+  that handles the push event, e.g. `'{"deeplink":"app://orders/9"}'`.
+</ParamField>
+
 ### Shared options
 
 <ParamField path="--vars <json>">
@@ -286,6 +314,14 @@ senderkit send-raw "dev_token_…" \
   --body "Tracking attached" \
   --badge 1 \
   --push-data '{"deeplink":"app://orders/9"}'
+
+# Web Push (pass the JSON-serialised PushSubscription as the recipient)
+senderkit send-raw '{"endpoint":"https://fcm.googleapis.com/…","keys":{"p256dh":"…","auth":"…"}}' \
+  --channel web-push \
+  --title "New message" \
+  --body "You have a new message from Ada." \
+  --icon "https://example.com/icon.png" \
+  --click-url "https://example.com/messages"
 ```
 
 ## When to reach for the CLI vs the SDK

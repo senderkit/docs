@@ -14,6 +14,38 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="June 2, 2026" description="v0.3.0 — web-push channel" tags={["SDK", "CLI", "MCP"]}>
+  ## Web Push channel
+
+  `web-push` (browser notifications via the Web Push Protocol + VAPID) is now a
+  first-class channel, distinct from the mobile `push` channel.
+
+  ### TypeScript SDK
+
+  - `Channel` now includes `"web-push"`.
+  - New `RawWebPushContent` type: `{ title, body, icon?, clickUrl?, badge?, data? }`.
+  - `sendRaw({ channel: "web-push", to, content })` — `to` is the JSON-encoded
+    browser `PushSubscription` (endpoint + `p256dh`/`auth` keys). Your application
+    collects these after the user grants browser permission.
+
+  ### CLI
+
+  - `senderkit send-raw --channel web-push` with `--title`, `--body`, `--icon`,
+    `--click-url`, `--badge`, and `--push-data` flags.
+
+  ### MCP server
+
+  - `senderkit_send_raw` and `senderkit_messages_list` `channel` enums now accept
+    `"web-push"`. The `icon` and `clickUrl` inputs are available on `senderkit_send_raw`.
+    Both the CLI stdio server and the app-hosted HTTP MCP server are updated.
+
+  ### Dashboard / API
+
+  The `web-push` channel is also fully supported in the SenderKit dashboard and REST
+  API: connect a VAPID keypair, create web-push templates, and send via
+  `POST /v1/send` or `POST /v1/send-raw`.
+</Update>
+
 <Update label="May 31, 2026" description="v0.2.1 — CLI email-envelope flags" tags={["SDK", "CLI"]}>
   ## CLI cc/bcc/attachments flags fixed
 
