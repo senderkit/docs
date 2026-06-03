@@ -54,7 +54,7 @@ new SenderKit(options: SenderKitOptions)
   [Authentication](/authentication).
 </ParamField>
 
-<ParamField path="baseUrl" type="string" default="https://senderkit.com/api">
+<ParamField path="baseUrl" type="string" default="https://api.senderkit.com">
   Override the API base URL. Useful for pointing at a proxy or a self-hosted
   gateway.
 </ParamField>
@@ -102,7 +102,7 @@ senderkit.send(request: SendRequest): Promise<SendResponse>
   Template variables. Defaults to `{}`.
 </ParamField>
 
-<ParamField path="channel" type='"email" | "sms" | "push"'>
+<ParamField path="channel" type='"email" | "sms" | "push" | "web-push"'>
   Force a channel. Defaults to the template's primary channel.
 </ParamField>
 
@@ -307,7 +307,7 @@ senderkit.messages.cancel(id: string): Promise<CancelMessageResponse>
   Filter by [status](/concepts/messages), e.g. `"delivered"`, `"failed"`.
 </ParamField>
 
-<ParamField path="params.channel" type='"email" | "sms" | "push"'>
+<ParamField path="params.channel" type='"email" | "sms" | "push" | "web-push"'>
   Filter by channel.
 </ParamField>
 
