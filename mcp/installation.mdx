@@ -5,7 +5,7 @@ icon: 'plug'
 ---
 
 This page covers connecting every supported client to SenderKit's MCP server,
-both ways: pointing at the hosted endpoint at `https://mcp.senderkit.com/mcp`
+both ways: pointing at the hosted endpoint at `https://mcp.senderkit.com`
 (recommended — nothing to install) or running the local stdio server bundled
 in the [CLI](/cli/installation).
 
@@ -21,7 +21,7 @@ in the [CLI](/cli/installation).
 
 |                  | Hosted                              | Local stdio                       |
 | ---------------- | ----------------------------------- | --------------------------------- |
-| Endpoint         | `https://mcp.senderkit.com/mcp`     | `senderkit mcp` subprocess        |
+| Endpoint         | `https://mcp.senderkit.com`     | `senderkit mcp` subprocess        |
 | Auth             | `Authorization: Bearer <key>` header | `SENDERKIT_API_KEY` env var       |
 | Network hop      | yes                                 | none                              |
 | Requires Node.js | no                                  | yes (via the CLI)                 |
@@ -65,7 +65,7 @@ block per client.
     <CodeGroup>
       ```bash Hosted
       claude mcp add --transport http --scope user senderkit \
-        https://mcp.senderkit.com/mcp \
+        https://mcp.senderkit.com \
         --header "Authorization: Bearer $SENDERKIT_API_KEY"
       ```
 
@@ -99,7 +99,7 @@ block per client.
             "args": [
               "-y",
               "mcp-remote",
-              "https://mcp.senderkit.com/mcp",
+              "https://mcp.senderkit.com",
               "--header",
               "Authorization: Bearer ${SENDERKIT_API_KEY}"
             ]
@@ -133,7 +133,7 @@ block per client.
       {
         "mcpServers": {
           "senderkit": {
-            "url": "https://mcp.senderkit.com/mcp",
+            "url": "https://mcp.senderkit.com",
             "headers": {
               "Authorization": "Bearer ${SENDERKIT_API_KEY}"
             }
@@ -169,7 +169,7 @@ block per client.
             "args": [
               "-y",
               "mcp-remote",
-              "https://mcp.senderkit.com/mcp",
+              "https://mcp.senderkit.com",
               "--header",
               "Authorization: Bearer ${SENDERKIT_API_KEY}"
             ]
@@ -209,7 +209,7 @@ block per client.
         "servers": {
           "senderkit": {
             "type": "http",
-            "url": "https://mcp.senderkit.com/mcp",
+            "url": "https://mcp.senderkit.com",
             "headers": {
               "Authorization": "Bearer ${SENDERKIT_API_KEY}"
             }
@@ -241,7 +241,7 @@ block per client.
       {
         "context_servers": {
           "senderkit": {
-            "url": "https://mcp.senderkit.com/mcp",
+            "url": "https://mcp.senderkit.com",
             "headers": {
               "Authorization": "Bearer ${SENDERKIT_API_KEY}"
             }
@@ -275,7 +275,7 @@ block per client.
       args = [
         "-y",
         "mcp-remote",
-        "https://mcp.senderkit.com/mcp",
+        "https://mcp.senderkit.com",
         "--header",
         "Authorization: Bearer ${SENDERKIT_API_KEY}",
       ]
@@ -301,7 +301,7 @@ block per client.
         "mcp": {
           "senderkit": {
             "type": "remote",
-            "url": "https://mcp.senderkit.com/mcp",
+            "url": "https://mcp.senderkit.com",
             "enabled": true,
             "headers": {
               "Authorization": "Bearer ${SENDERKIT_API_KEY}"

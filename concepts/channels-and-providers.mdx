@@ -46,14 +46,34 @@ each send.
 Credentials are encrypted at rest. Each channel has one **default** connection, and a
 template can override that default to use a specific connection.
 
+## Built-in email sender
+
+Every workspace comes with a built-in email connection that works immediately — no
+provider account or credentials required. Email sends from `@tx.senderkit.email` (a
+dedicated sending domain), so you can start sending in live mode on day one and
+connect your own provider later when you're ready to use a custom from-address.
+
+The built-in sender has soft caps per plan to protect the shared domain's reputation:
+
+| Plan | Monthly cap | Daily cap |
+| ---- | ----------- | --------- |
+| Free | 500         | 50        |
+| Pro  | 10,000      | 500       |
+
+Sends that exceed the cap return HTTP `402` with code `managed_send_limit_reached`.
+Once you connect your own provider and set it as the workspace default, it replaces
+the built-in sender and the caps no longer apply.
+
 ## How a send picks a provider
 
 You don't choose a provider per send — SenderKit resolves one for you:
 
 1. The template's **provider override**, if it has one.
 2. Otherwise, the **workspace default** for the channel.
-3. If neither is configured (in live mode), the send fails with
-   `provider_not_configured`.
+3. For `email`, if no custom provider is configured the built-in sender is used
+   (subject to the caps above).
+4. For other channels without a configured provider (in live mode), the send fails
+   with `provider_not_configured`.
 
 <Note>
   Provider **failover is not available yet** — it's planned. Today, if the chosen
