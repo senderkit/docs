@@ -37,9 +37,9 @@ your assistant can experiment without anything leaving the building.
 Three ways to connect:
 
 <CardGroup cols={3}>
-  <Card title="OAuth (claude.ai)" icon="key">
-    Connect directly from claude.ai or any OAuth-only MCP client — no API key
-    needed. Sign in with your SenderKit account and pick a workspace + mode.
+  <Card title="OAuth" icon="key">
+    Connect from Claude (web, desktop, mobile) or any OAuth-compatible MCP
+    client — no API key needed. Sign in and pick a workspace + mode.
   </Card>
   <Card title="Hosted (API key)" icon="cloud">
     Point your client at `https://mcp.senderkit.com`. Auth is
@@ -52,8 +52,8 @@ Three ways to connect:
 </CardGroup>
 
 The hosted and local options are API-key authenticated and behave identically —
-pick whichever fits your setup. OAuth is for clients like claude.ai that don't
-support custom headers and handle auth themselves.
+pick whichever fits your setup. OAuth is for clients that handle auth themselves
+rather than accepting a custom header.
 
 <CardGroup cols={3}>
   <Card title="Quickstart" icon="bolt" href="/mcp/quickstart">

@@ -5,18 +5,20 @@ icon: 'plug'
 ---
 
 This page covers all supported ways to connect to SenderKit's MCP server:
-OAuth (for claude.ai and other OAuth-only clients), the hosted API-key endpoint,
+OAuth (for clients that handle auth themselves), the hosted API-key endpoint,
 and the local stdio server bundled in the CLI.
 
-## Connect from claude.ai (OAuth)
+## Connect via OAuth
 
-If you use SenderKit from the **claude.ai** website or another OAuth-only MCP
-client, you don't need an API key — the client handles auth through SenderKit's
-OAuth 2.1 authorization server.
+If your client handles auth through OAuth rather than a manual API key (Claude
+on the web, desktop, or mobile; ChatGPT custom connectors; or any other
+OAuth-compatible MCP client), you don't need an API key — the client drives the
+auth flow through SenderKit's OAuth 2.1 authorization server.
 
 <Steps>
-  <Step title="Open claude.ai → Customise → Add custom connector">
-    Use whichever section your client uses to add MCP connections.
+  <Step title="Find the custom connector / MCP section in your client">
+    In Claude, this is typically **Customise → Add custom connector**. Other
+    clients have similar settings screens.
   </Step>
   <Step title="Add `https://mcp.senderkit.com` as the server URL">
     The client will discover SenderKit's OAuth endpoints automatically.
@@ -383,9 +385,9 @@ serve multiple users or workspaces.
   </Accordion>
 
   <Accordion title="The client reports an authentication failure.">
-    For **OAuth** clients: the connection may have been revoked. Go to **Dashboard
-    → Settings → Connected Apps**, revoke the entry for your client, and
-    reconnect.
+    For **OAuth** clients (Claude web/desktop/mobile, etc.): the connection may
+    have been revoked. Go to **Dashboard → Settings → Connected Apps**, revoke
+    the entry for your client, and reconnect.
 
     For **hosted (API key)**, check that the `Authorization` header value is
     exactly `Bearer sk_live_…` or `Bearer sk_test_…` — no extra whitespace, no
