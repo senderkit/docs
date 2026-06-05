@@ -26,29 +26,34 @@ The server exposes a small surface that mirrors SenderKit's main operations:
 - **List and inspect [templates](/concepts/templates)** by slug.
 - **Query and cancel [messages](/concepts/messages)** — list recent sends with
   filters, fetch a single message, or cancel a still-pending one.
+- **Check your connection mode** with `senderkit_context` — confirm whether the
+  active connection is live or test before sending.
 
 All in [test mode by default](/concepts/environments) — use an `sk_test_` key and
 your assistant can experiment without anything leaving the building.
 
 ## How it runs
 
-You can connect to the server two ways, both authenticated with the same
-SenderKit API key:
+Three ways to connect:
 
-<CardGroup cols={2}>
-  <Card title="Hosted" icon="cloud">
-    Point your client at `https://mcp.senderkit.com/mcp`. SenderKit runs the
-    server. Auth is `Authorization: Bearer <key>`.
+<CardGroup cols={3}>
+  <Card title="OAuth" icon="key">
+    Connect from Claude (web, desktop, mobile) or any OAuth-compatible MCP
+    client — no API key needed. Sign in and pick a workspace + mode.
   </Card>
-  <Card title="Local" icon="terminal">
+  <Card title="Hosted (API key)" icon="cloud">
+    Point your client at `https://mcp.senderkit.com`. Auth is
+    `Authorization: Bearer <key>`. SenderKit runs the server.
+  </Card>
+  <Card title="Local (stdio)" icon="terminal">
     Run `senderkit mcp` from the [CLI](/cli/installation) — a stdio MCP server
     that reads `SENDERKIT_API_KEY` from your environment.
   </Card>
 </CardGroup>
 
-Both expose the same tools and behave identically; the only difference is where
-the server runs. Use hosted if you don't want to install anything; use local if
-you'd rather skip the network hop and your AI client already runs on your machine.
+The hosted and local options are API-key authenticated and behave identically —
+pick whichever fits your setup. OAuth is for clients that handle auth themselves
+rather than accepting a custom header.
 
 <CardGroup cols={3}>
   <Card title="Quickstart" icon="bolt" href="/mcp/quickstart">

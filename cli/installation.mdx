@@ -136,6 +136,21 @@ senderkit templates list --json | jq '.[].slug'
 senderkit messages list --status failed --json > failed.json
 ```
 
+## Utility commands
+
+### `senderkit context`
+
+Report the active connection's live/test mode:
+
+```bash
+senderkit context
+# mode:     test
+# livemode: false
+```
+
+Useful in scripts when you want to confirm which key is in use before sending.
+Add `--json` to get `{ mode, livemode }` as structured output.
+
 ## MCP server
 
 The CLI also bundles the SenderKit MCP server, exposed as `senderkit mcp` and

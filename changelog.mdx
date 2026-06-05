@@ -14,6 +14,49 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="June 5, 2026" description="v0.4.0 — senderkit_context, OAuth MCP, email deliverability" tags={["SDK", "CLI", "MCP"]}>
+  ## senderkit_context tool + mode on send results
+
+  ### TypeScript SDK
+
+  No SDK-visible changes in this release.
+
+  ### CLI
+
+  New `senderkit context` command reports the active connection's live/test mode.
+  Useful in scripts and in MCP sessions to confirm which key is active before
+  sending.
+
+  ```bash
+  senderkit context
+  # mode:     test
+  # livemode: false
+  ```
+
+  ### MCP server
+
+  **New `senderkit_context` tool** — returns `{ workspaceId, mode, livemode }`.
+  Call it before sending to confirm whether the connection is live (real
+  delivery) or test (recorded only). Available on both the CLI stdio server and
+  the hosted endpoint.
+
+  **`mode` field on send results** — `senderkit_send` and `senderkit_send_raw`
+  results now include a `mode` field alongside the message `id` and `status`,
+  giving the model a post-send confirmation of which mode the message was
+  dispatched in.
+
+  **Tool titles and behaviour annotations** — every tool now exposes a
+  human-readable `title` and a behaviour hint (`readOnlyHint` or
+  `destructiveHint`) per the MCP protocol. These appear in compatible client
+  UIs and are required for the Anthropic Claude Connectors Directory.
+
+  **OAuth connection for claude.ai** — `mcp.senderkit.com` now acts as a full
+  OAuth 2.1 authorization server, so claude.ai and other OAuth-only MCP clients
+  can connect without a manual API key. Sign in with your SenderKit account and
+  pick a workspace + mode on the consent screen. See
+  [Installation → Connect from claude.ai](/mcp/installation#connect-from-claude-ai-oauth).
+</Update>
+
 <Update label="June 3, 2026" description="v0.3.1 — default URL corrections" tags={["SDK", "CLI"]}>
   ## Default URL corrections
 
