@@ -4,12 +4,42 @@ description: "Configure the SenderKit MCP server in your AI client."
 icon: 'plug'
 ---
 
-This page covers connecting every supported client to SenderKit's MCP server,
-both ways: pointing at the hosted endpoint at `https://mcp.senderkit.com`
-(recommended — nothing to install) or running the local stdio server bundled
-in the [CLI](/cli/installation).
+This page covers all supported ways to connect to SenderKit's MCP server:
+OAuth (for claude.ai and other OAuth-only clients), the hosted API-key endpoint,
+and the local stdio server bundled in the CLI.
 
-## Prerequisites
+## Connect from claude.ai (OAuth)
+
+If you use SenderKit from the **claude.ai** website or another OAuth-only MCP
+client, you don't need an API key — the client handles auth through SenderKit's
+OAuth 2.1 authorization server.
+
+<Steps>
+  <Step title="Open claude.ai → Settings → Integrations">
+    Or whichever section your client uses to add MCP connections.
+  </Step>
+  <Step title="Add `https://mcp.senderkit.com` as the server URL">
+    The client will discover SenderKit's OAuth endpoints automatically.
+  </Step>
+  <Step title="Sign in with your SenderKit account">
+    You'll be redirected to senderkit.com to authenticate.
+  </Step>
+  <Step title="Choose a workspace and mode on the consent screen">
+    Pick which workspace the agent should act on, and whether it should use
+    **live** mode (real delivery) or **test** mode (recorded but not sent).
+    You can revoke the connection at any time from **Dashboard → Settings →
+    Connected Apps**.
+  </Step>
+</Steps>
+
+<Note>
+  The workspace and mode you choose at consent time are fixed for that
+  connection. To switch, revoke and reconnect. Call
+  [`senderkit_context`](/mcp/tools#senderkit_context) from within a session to
+  confirm which workspace and mode are active.
+</Note>
+
+## Prerequisites (API-key connection)
 
 - A SenderKit API key. Create one in the
   [dashboard](https://senderkit.com/app/dashboard); see [Authentication](/authentication).
@@ -353,10 +383,14 @@ serve multiple users or workspaces.
   </Accordion>
 
   <Accordion title="The client reports an authentication failure.">
-    For **hosted**, check that the `Authorization` header value is exactly
-    `Bearer sk_live_…` or `Bearer sk_test_…` — no extra whitespace, no missing
-    `Bearer ` prefix. The server returns `401` for any missing or unrecognized
-    key. Revoked keys also return `401`; create a new key in the
+    For **OAuth** clients: the connection may have been revoked. Go to **Dashboard
+    → Settings → Connected Apps**, revoke the entry for your client, and
+    reconnect.
+
+    For **hosted (API key)**, check that the `Authorization` header value is
+    exactly `Bearer sk_live_…` or `Bearer sk_test_…` — no extra whitespace, no
+    missing `Bearer ` prefix. The server returns `401` for any missing or
+    unrecognized key. Revoked keys also return `401`; create a new key in the
     [dashboard](https://senderkit.com/app/dashboard).
 
     For **local stdio**, the server reads `SENDERKIT_API_KEY` from the

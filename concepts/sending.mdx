@@ -99,6 +99,36 @@ await senderkit.send({
   collapses to a single message.
 </Tip>
 
+## Email deliverability
+
+SenderKit applies two automatic behaviors to every email send (template and raw)
+that improve inbox placement and comply with bulk-sender requirements:
+
+**Multipart delivery (HTML + plain text)**
+
+Every email ships as `multipart/alternative`: an auto-generated plain-text body
+is derived from the final HTML at send time (after template variables and
+reusable blocks are applied). HTML-only mail scores worse with spam filters; the
+auto-generated part keeps the plain-text copy in sync with the HTML without
+requiring you to maintain it manually.
+
+For raw sends (`sendRaw` / `senderkit_send_raw`), you can supply your own `text`
+field to override the auto-generated version.
+
+**List-Unsubscribe headers (RFC 8058)**
+
+All non-system email sends include `List-Unsubscribe` and
+`List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers, required by Gmail
+and Yahoo for bulk senders. When a recipient uses the one-click unsubscribe
+link, SenderKit records the opt-out and skips future sends from your workspace
+to that address — the skipped messages are recorded with status `opted_out`.
+
+<Note>
+  Opt-out suppression is workspace-scoped: an opt-out in workspace A does not
+  block sends in workspace B. It also currently applies to all email from your
+  workspace, not per-template. Transactional exemptions are planned.
+</Note>
+
 ## Ordering and batching
 
 Delivery is concurrent and out of band, so **send order is not delivery order** —

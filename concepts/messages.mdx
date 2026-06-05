@@ -24,6 +24,7 @@ stateDiagram-v2
     sent --> delivered
     sent --> failed
     sent --> opted_out
+    queued --> opted_out
     queued --> failed
     rendered --> failed
 ```
@@ -36,7 +37,7 @@ stateDiagram-v2
 | `sent` | A provider accepted the message | Successful provider dispatch |
 | `delivered` | The provider confirmed delivery | Provider webhook |
 | `failed` | Delivery failed | Provider webhook, a config error, or retries exhausted |
-| `opted_out` | Recipient is unsubscribed/suppressed | Provider webhook |
+| `opted_out` | Recipient is unsubscribed/suppressed | Provider webhook, one-click unsubscribe link, or send skipped because the recipient previously opted out |
 | `canceled` | Delivery intentionally stopped before dispatch | `messages.cancel()` or the dashboard cancel action |
 
 <Note>
