@@ -270,6 +270,25 @@ const failed = results.filter((r) => !r.ok);
 if (failed.length) console.error(`${failed.length} sends failed`);
 ```
 
+## `context()`
+
+Fetch the workspace the API key belongs to and the active send mode.
+
+```ts
+senderkit.context(): Promise<SenderKitContext>
+```
+
+Returns `{ workspace: { id, slug, name }, mode: "live" | "test" }`. Useful to
+confirm which workspace subsequent calls will affect — mirrors
+[`GET /v1/context`](/api-reference/introduction) and the
+[`senderkit_context`](/mcp/tools) MCP tool.
+
+```ts
+const ctx = await senderkit.context();
+console.log(ctx.workspace.name); // "Acme Inc"
+console.log(ctx.mode);           // "live"
+```
+
 ## Templates
 
 ```ts
@@ -278,8 +297,14 @@ senderkit.templates.get(slug: string): Promise<Template>
 ```
 
 `list()` returns templates without their version body. `get(slug)` includes
-`currentVersion` (`{ versionNumber, content, variables, publishedAt }`). A
-`Template` has `slug`, `channel`, `description`, `status`, and `updatedAt`.
+`currentVersion` (`{ versionNumber, variables, publishedAt }`). A `Template`
+has `slug`, `channel`, `description`, `status`, and `updatedAt`.
+
+<Note>
+  The `content` (raw HTML/blocks) field is intentionally omitted from both
+  `list()` and `get()` responses to keep payloads lean. Use the dashboard or
+  the `/v1/templates/{slug}/render` endpoint when you need the rendered output.
+</Note>
 
 ```ts
 const templates = await senderkit.templates.list();
@@ -386,10 +411,10 @@ try {
 ## Exports
 
 The package exports the `SenderKit` class, every error class above, the
-`VERSION` constant, and types including `SenderKitOptions`, `SendRequest`,
-`SendRawRequest`, `SendResponse`, `BatchSendOptions`, `BatchSendResult`,
-`Attachment`, `EmailEnvelope`, `Template`, `Message`, `ListMessagesParams`,
-`ListMessagesResponse`, and `CancelMessageResponse`.
+`VERSION` constant, and types including `SenderKitOptions`, `SenderKitContext`,
+`SendRequest`, `SendRawRequest`, `SendResponse`, `BatchSendOptions`,
+`BatchSendResult`, `Attachment`, `EmailEnvelope`, `Template`, `Message`,
+`ListMessagesParams`, `ListMessagesResponse`, and `CancelMessageResponse`.
 
 <CardGroup cols={2}>
   <Card title="Sending" icon="paper-plane" href="/concepts/sending">
