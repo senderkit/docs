@@ -47,6 +47,7 @@
             "group": "CLI",
             "pages": [
               "cli/installation",
+              "cli/context",
               "cli/send",
               "cli/templates",
               "cli/messages"
