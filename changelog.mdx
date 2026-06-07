@@ -57,6 +57,44 @@ This page tracks releases of SenderKit's developer libraries — the
   [Installation → Connect from claude.ai](/mcp/installation#connect-from-claude-ai-oauth).
 </Update>
 
+<Update label="June 6, 2026" description="v0.6.0 — workspace identity & client.context()" tags={["SDK", "CLI", "MCP"]}>
+  ## Workspace identity in context
+
+  ### TypeScript SDK
+
+  **New `client.context()` method** — calls `GET /v1/context` and returns a
+  `SenderKitContext` (`{ workspace: { id, slug, name }, mode }`). Use it to confirm
+  which workspace an API key belongs to before sending:
+
+  ```ts
+  const ctx = await senderkit.context();
+  console.log(ctx.workspace.name); // "Acme Inc"
+  console.log(ctx.mode);           // "live"
+  ```
+
+  `SenderKitContext` is now a named export alongside the existing types.
+
+  ### CLI
+
+  `senderkit context` now calls `GET /v1/context` (was a local key-prefix check)
+  and includes the workspace name and slug in its output:
+
+  ```bash
+  senderkit context
+  # workspace: Acme Inc
+  # slug:      acme
+  # mode:      live
+  ```
+
+  `--json` returns `{ workspace: { id, slug, name }, mode }`.
+
+  ### MCP server
+
+  `senderkit_context` now returns `{ workspace: { id, slug, name }, mode }`.
+  The `workspaceId` and `livemode` fields from v0.4.0 are replaced by the
+  structured `workspace` object and a single `mode` string.
+</Update>
+
 <Update label="June 3, 2026" description="v0.3.1 — default URL corrections" tags={["SDK", "CLI"]}>
   ## Default URL corrections
 

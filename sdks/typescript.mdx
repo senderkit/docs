@@ -229,6 +229,22 @@ server-side variable substitution over it. Returns the same `SendResponse` as
     });
     ```
   </Tab>
+  <Tab title="web-push">
+    `content: RawWebPushContent` — `{ title, body, icon?, clickUrl?, badge?, data? }`.
+    `to` is the JSON-encoded browser `PushSubscription` from the Web Push API.
+
+    ```ts
+    await senderkit.sendRaw({
+      channel: "web-push",
+      to: JSON.stringify(subscription), // PushSubscription from browser
+      content: {
+        title: "New order shipped",
+        body: "Your package is on its way.",
+        clickUrl: "https://acme.com/orders/ord_123",
+      },
+    });
+    ```
+  </Tab>
 </Tabs>
 
 ## `sendBatch()`
@@ -348,6 +364,12 @@ senderkit.messages.cancel(id: string): Promise<CancelMessageResponse>
 `cancel(id)` only works on `scheduled` or `queued` messages — later states
 return a `409` (`SenderKitApiError`) — and resolves to
 `{ id, status: "canceled" }`.
+
+<Note>
+  Message reads are lean — the rendered `content` blob is intentionally omitted
+  to keep payloads manageable. The `vars`, `timeline`, and `metadata` attached at
+  send time are still returned on every message.
+</Note>
 
 ```ts
 // Page through every failed email
