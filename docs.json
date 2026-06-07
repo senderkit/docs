@@ -107,7 +107,7 @@
       "anchors": [
         {
           "anchor": "Dashboard",
-          "href": "https://senderkit.com",
+          "href": "https://www.senderkit.com/app/dashboard",
           "icon": "gauge"
         },
         {
@@ -132,7 +132,7 @@
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://senderkit.com"
+      "href": "https://www.senderkit.com/app/dashboard"
     }
   },
   "contextual": {
