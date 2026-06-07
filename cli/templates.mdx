@@ -13,8 +13,12 @@ for scripting reports against your template catalogue.
   Templates are managed in the [SenderKit dashboard](https://senderkit.com) —
   copy edits, version publishes, and channel changes all happen there. The CLI
   is read-only on templates; there is no `pull`, `push`, or `create` command,
-  because templates aren't files on disk. To edit a template programmatically,
-  use the [REST API](/api-reference/introduction).
+  because templates aren't files on disk. To create or regenerate templates
+  programmatically, use the MCP tools
+  [`senderkit_templates_create`](/mcp/tools#senderkit_templates_create) and
+  [`senderkit_templates_regenerate`](/mcp/tools#senderkit_templates_regenerate)
+  (AI-assisted, saves as a draft for review), or the [REST API](/api-reference/introduction)
+  for direct writes.
 </Note>
 
 ## `senderkit templates list`

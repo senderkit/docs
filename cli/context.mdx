@@ -1,0 +1,70 @@
+---
+title: "context"
+description: "Report the connected workspace and send mode."
+icon: 'circle-info'
+---
+
+`senderkit context` fetches the workspace your API key belongs to and whether
+the connection is in live or test mode. The values come from the API rather than
+being derived locally, so the output is authoritative — it tells you exactly
+which workspace subsequent `send` calls will affect.
+
+```bash
+senderkit context
+```
+
+No arguments or flags. The command exits non-zero if the key is invalid or the
+API is unreachable.
+
+## Output
+
+```
+workspace: Acme Inc
+slug:      acme
+mode:      live
+```
+
+| Field | What it means |
+| --- | --- |
+| `workspace` | Human-readable workspace name |
+| `slug` | URL-safe workspace identifier |
+| `mode` | `live` — messages are really delivered; `test` — messages are recorded but not dispatched to a provider |
+
+`--json` returns the structured API response:
+
+```json
+{
+  "workspace": { "id": "ws_…", "slug": "acme", "name": "Acme Inc" },
+  "mode": "live"
+}
+```
+
+## When to use it
+
+- **Before sending** in a script — confirm the key points at the right workspace
+  and mode before dispatching real messages.
+- **Debugging** — `sk_live_` / `sk_test_` key prefixes tell you mode, but not
+  which workspace the key belongs to. `context` resolves both.
+
+```bash
+# Check before a bulk send
+senderkit context --json | jq -r '"workspace: \(.workspace.name), mode: \(.mode)"'
+```
+
+## Mirrors
+
+The same information is available as:
+
+- **SDK**: `senderkit.context()` — see the [TypeScript SDK](/sdks/typescript#context).
+- **MCP tool**: [`senderkit_context`](/mcp/tools#senderkit_context) — call it from
+  an AI agent before sending to confirm which workspace and mode are active.
+- **REST endpoint**: `GET /v1/context` — see the [API Reference](/api-reference/introduction).
+
+<CardGroup cols={2}>
+  <Card title="send" icon="paper-plane" href="/cli/send">
+    Dispatch a message after confirming context.
+  </Card>
+  <Card title="Environments" icon="flask" href="/concepts/environments">
+    Live vs test mode and what each means for delivery.
+  </Card>
+</CardGroup>
