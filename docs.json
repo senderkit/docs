@@ -76,7 +76,8 @@
               "guides/stripe-lifecycle",
               "guides/team-invites",
               "guides/supabase-notifications",
-              "guides/ai-agent"
+              "guides/ai-agent",
+              "guides/agent-skills"
             ]
           },
           {
