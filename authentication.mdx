@@ -29,6 +29,22 @@ The prefix is only a hint for humans; the secret is the full token. SenderKit
 derives live-versus-test mode from the prefix server-side, so the same code path
 behaves correctly just by swapping the key.
 
+## Dashboard sign-in
+
+The SenderKit dashboard supports two sign-in methods:
+
+- **Email code (OTP)** — the default. Enter your email address and a
+  one-time code is sent to your inbox.
+- **Password** — an optional fallback. Set a password from **Account →
+  Password** in the dashboard after signing in with a code. Once set, you
+  can sign in with your email and password directly from the code screen
+  ("Continue with password"), or reset a forgotten password via the
+  "Forgot password?" link.
+
+Password sign-up is intentionally not supported — a credential can only be
+created from within an authenticated session, so a valid email address is
+always verified first.
+
 ## Scopes and revocation
 
 Keys can be scoped (the default scope is `send:*`). To retire a key, revoke it in

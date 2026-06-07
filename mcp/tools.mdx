@@ -4,7 +4,7 @@ description: "Every MCP tool the SenderKit server exposes."
 icon: 'screwdriver-wrench'
 ---
 
-The SenderKit MCP server exposes eight tools, identical across the hosted
+The SenderKit MCP server exposes ten tools, identical across the hosted
 endpoint and the local stdio server. Tool names are prefixed with `senderkit_`
 so they don't collide with other servers in a multi-server setup.
 
@@ -14,15 +14,16 @@ No MCP prompts or resources are exposed — tools only.
 
 ### `senderkit_context`
 
-Report the active connection's live/test mode. No parameters.
+Report the connected workspace and the active send mode. No parameters.
 
-Call this before sending when you need to confirm whether messages will really
-be delivered (`live`) or only recorded in test mode (`test`). The mode is fixed
-per connection — derived from the API key prefix for API-key connections
-(`sk_live_` / `sk_test_`), or from the workspace/mode you chose on the consent
-screen for OAuth connections.
+Call this before sending when you need to confirm which workspace subsequent
+calls will affect, or whether messages will really be delivered (`live`) or
+only recorded in test mode (`test`). The mode is fixed per connection —
+derived from the API key prefix for API-key connections (`sk_live_` /
+`sk_test_`), or from the workspace/mode you chose on the consent screen for
+OAuth connections.
 
-Returns `{ workspaceId, mode: "live" | "test", livemode: boolean }`.
+Returns `{ workspace: { id, slug, name }, mode: "live" | "test" }`.
 
 ## Sending
 
@@ -177,10 +178,50 @@ Mirrors `GET /v1/templates`. See [Templates](/concepts/templates).
 Fetch a single template by slug.
 
 Use to inspect a template's current state — its channel, status, and currently
-published version. Mirrors `GET /v1/templates/{slug}`.
+published version (excluding the raw content blob). Mirrors
+`GET /v1/templates/{slug}`.
 
 <ParamField path="slug" type="string" required>
   Template slug, e.g. `"welcome"`.
+</ParamField>
+
+### `senderkit_templates_create`
+
+Generate a new template from a plain-language brief and save it as a **draft**.
+
+The tool composes channel-native content server-side and returns a deep link to
+review the draft in the editor. Nothing is sent until the user reviews and
+publishes the draft. Template creation counts toward the workspace's template
+cap; the tool returns `409 template_limit_reached` if the cap is hit before the
+AI call runs.
+
+<ParamField path="channel" type='"email" | "sms" | "push" | "web-push"' required>
+  The channel for the new template.
+</ParamField>
+<ParamField path="brief" type="string" required>
+  Plain-language description of the message to generate (max 4,000 characters).
+</ParamField>
+<ParamField path="slug" type="string">
+  URL-safe identifier (`letters`, digits, `_` or `-`). Auto-derived from the
+  brief if omitted; a numeric suffix is appended on collision.
+</ParamField>
+<ParamField path="description" type="string">
+  Optional internal note (max 280 characters).
+</ParamField>
+
+### `senderkit_templates_regenerate`
+
+Regenerate an existing **draft** template from a new brief.
+
+This fully replaces the draft's content and discards any manual edits made in
+the editor — warn the user before calling. Only draft templates can be
+regenerated; published templates are left untouched.
+
+<ParamField path="slug" type="string" required>
+  Slug of the draft template to regenerate.
+</ParamField>
+<ParamField path="brief" type="string" required>
+  New brief that fully replaces the draft's content (max 4,000 characters).
 </ParamField>
 
 ## Messages

@@ -29,16 +29,19 @@ hand.
 
 ## Where it fits in the workflow
 
-AI authoring is a **dashboard authoring aid**. You use it in the template editor when
-composing a new template or reworking an existing one. The draft it generates is a new
-template [version](/concepts/versioning) — nothing goes live until you review it and
-**publish**.
+AI authoring is available in two places:
 
-<Note>
-  AI authoring is a dashboard feature. It is **not** exposed through the SDK, CLI, or
-  public API — those surfaces send and read templates; authoring with AI happens in
-  the dashboard editor and runs on OpenAI (gpt-5.5).
-</Note>
+- **Dashboard editor** — the **Write with AI** button in the template editor
+  drafts or rewrites a template inline. Nothing goes live until you review and
+  **publish**.
+- **MCP server** — the [`senderkit_templates_create`](/mcp/tools#senderkit_templates_create)
+  and [`senderkit_templates_regenerate`](/mcp/tools#senderkit_templates_regenerate) tools
+  let an AI agent (Claude, Cursor, etc.) generate templates from a brief.
+  Both tools save the result as a **draft** and return a link to the editor for
+  review — publishing is always a deliberate human step.
+
+In both cases the draft is a new template [version](/concepts/versioning); it
+only affects real sends once you publish it.
 
 ## What to expect
 

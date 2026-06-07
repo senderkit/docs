@@ -140,16 +140,18 @@ senderkit messages list --status failed --json > failed.json
 
 ### `senderkit context`
 
-Report the active connection's live/test mode:
+Report the connected workspace and the active send mode:
 
 ```bash
 senderkit context
-# mode:     test
-# livemode: false
+# workspace: Acme Inc
+# slug:      acme
+# mode:      test
 ```
 
-Useful in scripts when you want to confirm which key is in use before sending.
-Add `--json` to get `{ mode, livemode }` as structured output.
+Fetches `GET /v1/context` so the result is authoritative and workspace-aware.
+Add `--json` to get `{ workspace: { id, slug, name }, mode }` as structured
+output.
 
 ## MCP server
 
