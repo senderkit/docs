@@ -63,15 +63,19 @@ The tools and behavior are identical. Pick whichever fits your setup.
 ## Auto-install with the CLI
 
 If you have the CLI installed, `senderkit mcp install` writes the config for
-you. By default it targets every supported client it detects on your machine;
-pass `--client <name>` to target one.
+you. By default it configures the **hosted endpoint** with OAuth — no API key
+is stored; your client handles sign-in. Pass `--client <name>` to target a
+single client instead of every detected one.
 
 ```bash
-# Local stdio config for every detected client
+# Hosted OAuth config for every detected client (default — no API key stored)
 senderkit mcp install
 
-# Hosted (uses the API key from --api-key, $SENDERKIT_API_KEY, or `senderkit login`)
-senderkit mcp install --remote
+# Hosted with API key bearer auth instead of OAuth
+senderkit mcp install --api-key-auth
+
+# Local stdio subprocess config
+senderkit mcp install --local
 
 # Target one client
 senderkit mcp install --client cursor
