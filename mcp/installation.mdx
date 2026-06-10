@@ -301,20 +301,20 @@ block per client.
   </Tab>
 
   <Tab title="Codex">
-    Edit `~/.codex/config.toml`. Native remote MCP in Codex is still
-    experimental, so the hosted variant bridges through `mcp-remote`.
+    Edit `~/.codex/config.toml`. Codex has native streamable-HTTP MCP support
+    with OAuth — sign in with `codex mcp login senderkit` after writing the
+    config.
 
     <CodeGroup>
-      ```toml Hosted (via mcp-remote)
+      ```toml Hosted (OAuth)
       [mcp_servers.senderkit]
-      command = "npx"
-      args = [
-        "-y",
-        "mcp-remote",
-        "https://mcp.senderkit.com",
-        "--header",
-        "Authorization: Bearer ${SENDERKIT_API_KEY}",
-      ]
+      url = "https://mcp.senderkit.com"
+      ```
+
+      ```toml Hosted (API key)
+      [mcp_servers.senderkit]
+      url = "https://mcp.senderkit.com"
+      bearer_token_env_var = "SENDERKIT_API_KEY"
       ```
 
       ```toml Local stdio
@@ -419,7 +419,7 @@ serve multiple users or workspaces.
     `mcp-remote` requires Node.js 18+. Confirm with `node --version`. If `npx`
     is missing entirely, install Node from
     [nodejs.org](https://nodejs.org/), or switch to a client with native
-    remote MCP support (Claude Code, Cursor, VS Code, Zed, opencode).
+    remote MCP support (Claude Code, Cursor, VS Code, Zed, Codex, opencode).
   </Accordion>
 
   <Accordion title="The agent can see tools but every call returns an error.">
