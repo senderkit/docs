@@ -29,12 +29,30 @@ The prefix is only a hint for humans; the secret is the full token. SenderKit
 derives live-versus-test mode from the prefix server-side, so the same code path
 behaves correctly just by swapping the key.
 
-## Scopes and revocation
+## Scopes
 
-Keys can be scoped (the default scope is `send:*`). To retire a key, revoke it in
-the dashboard — a revoked or otherwise invalid key returns `401 Unauthorized`.
-There's no in-place rotation: to rotate, create a new key, deploy it, then revoke
-the old one.
+API keys carry an optional scope set that limits what a credential can do. You pick
+scopes in the dashboard at creation time; all three are selected by default.
+
+| Scope | Authorizes |
+| --- | --- |
+| `read` | `GET /v1/messages`, `GET /v1/messages/{id}`, `GET /v1/context`, `GET /v1/templates`, `GET /v1/templates/{slug}`, and template render |
+| `send` | `POST /v1/send`, `POST /v1/send-raw`, and draft template operations |
+| `cancel` | `DELETE /v1/messages/{id}` |
+
+A key created without selecting any explicit scope is **unscoped** and has full
+access — all keys minted before scope enforcement are unscoped by default and
+continue to work without changes. A scoped key used outside its grant returns `403`
+with `code: "insufficient_scope"`. The SDK surfaces this as
+[`SenderKitPermissionError`](/sdks/typescript#error-handling), distinct from the
+`SenderKitAuthenticationError` raised for `401`s, so you can handle the two cases
+separately.
+
+## Revocation
+
+To retire a key, revoke it in the dashboard — a revoked or otherwise invalid key
+returns `401 Unauthorized`. There's no in-place rotation: to rotate, create a new
+key, deploy it, then revoke the old one.
 
 ## Authenticating a request
 
