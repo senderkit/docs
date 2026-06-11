@@ -18,15 +18,15 @@ This page tracks releases of SenderKit's developer libraries — the
   ## Custom sending domains
 
   Pro workspaces can now connect their own sending domains and send from any
-  address on a verified domain — without `@tx.senderkit.email` appearing to
-  recipients and without any `amazonses.com` visible in DNS records.
+  address on a verified domain — without the shared `@tx.senderkit.email` address
+  appearing to recipients.
 
   **How it works:**
 
   - Add a domain in **Dashboard → Channels → Add domain** (Pro-gated; free
     workspaces see an upgrade prompt).
-  - Publish four DNS records: a DKIM TXT record at `senderkit._domainkey.{domain}`
-    (white-label, no Amazon branding), an MX + SPF pair on `send.{domain}` for the
+  - Publish four DNS records: a white-label DKIM TXT record at
+    `senderkit._domainkey.{domain}`, an MX + SPF pair on `send.{domain}` for the
     custom MAIL FROM, and optionally a root SPF and DMARC record. The dashboard
     probes DNS live and shows a green **Set** indicator once each record is detected.
   - SenderKit verifies the domain via Amazon SES (polls every 5 minutes; **Check
