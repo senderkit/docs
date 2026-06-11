@@ -64,6 +64,69 @@ Sends that exceed the cap return HTTP `402` with code `managed_send_limit_reache
 Once you connect your own provider and set it as the workspace default, it replaces
 the built-in sender and the caps no longer apply.
 
+## Custom sending domains (Pro)
+
+Pro workspaces can connect their own sending domains and send from any address on a
+verified domain — without the shared `@tx.senderkit.email` address appearing to
+recipients.
+
+Adding a domain creates a dedicated **managed connection** in the Channels page.
+The built-in shared sender remains as the implicit fallback; your domain connection
+can be set as the workspace default or targeted per template.
+
+### DNS records to publish
+
+After clicking **Add domain** in **Dashboard → Channels**, you'll see the required
+and recommended DNS records:
+
+| Record | Type | Purpose | Required? |
+| --- | --- | --- | --- |
+| `senderkit._domainkey.{domain}` | TXT | DKIM public key (white-label) | Yes |
+| `send.{domain}` | MX | Custom MAIL FROM subdomain | Yes |
+| `send.{domain}` | TXT | MAIL FROM SPF | Yes |
+| `_dmarc.{domain}` | TXT | DMARC policy | Recommended |
+| `{domain}` | TXT | Root domain SPF | Recommended |
+
+The dashboard probes DNS live and shows a green **Set** indicator once each record is
+detected. Recommended records improve deliverability reputation (e.g. third-party
+checkers like MXToolbox test the root domain) but don't gate verification. The
+dashboard shows the exact record values to copy — if you already have a root SPF
+record, merge the SenderKit SPF mechanism into it rather than publishing a second
+`v=spf1` record.
+
+### Verification
+
+SenderKit polls DNS every 5 minutes. You can also click **Check now** at any time.
+Verification typically completes within minutes once records propagate. Claims expire
+after 72 hours — if the domain isn't verified in time, you can resubmit.
+
+### From-address override on raw sends
+
+Once a domain is verified, `sendRaw` accepts a `from` address whose domain exactly
+matches the verified domain:
+
+```ts
+await senderkit.sendRaw({
+  channel: "email",
+  to: "customer@example.com",
+  from: "billing@acme.com",   // acme.com must be a verified custom sending domain
+  content: { subject: "Your invoice", html: "…" },
+});
+```
+
+The `from` override is only honored on raw sends — template sends route through the
+template's configured connection.
+
+### Caps
+
+Custom-domain connections have their own per-connection cap tier (separate from the
+built-in shared sender caps) and a separate per-connection billing meter.
+
+<Note>
+  Custom sending domains require a **Pro** plan. Free workspaces see an upgrade
+  prompt in the Channels page.
+</Note>
+
 ## How a send picks a provider
 
 You don't choose a provider per send — SenderKit resolves one for you:

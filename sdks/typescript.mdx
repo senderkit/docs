@@ -191,7 +191,9 @@ server-side variable substitution over it. Returns the same `SendResponse` as
   <Tab title="email">
     `content: RawEmailContent` — `{ subject, html, preheader?, text? }` plus the
     email envelope fields (`cc`, `bcc`, `replyTo`, `attachments`). A top-level
-    `from?` overrides the workspace sender.
+    `from?` overrides the workspace sender; must match a
+    [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains-pro)
+    when using the managed email sender.
 
     ```ts
     await senderkit.sendRaw({
@@ -397,7 +399,8 @@ it in support requests).
 
 | Class | Thrown when | Extra properties |
 | --- | --- | --- |
-| `SenderKitAuthenticationError` | `401` / `403` — bad or missing key | `status`, `code`, `issues`, `requestId` |
+| `SenderKitAuthenticationError` | `401` — bad, missing, or revoked key | `status`, `code`, `issues`, `requestId` |
+| `SenderKitPermissionError` | `403` — key is valid but lacks the required scope; extends `SenderKitApiError` (see [Scopes](/authentication#scopes)) | `status`, `code`, `issues`, `requestId` |
 | `SenderKitValidationError` | `400` / `422` — invalid request | `status`, `code`, `issues`, `requestId` |
 | `SenderKitRateLimitError` | `429` — rate limited | `retryAfter` (**milliseconds**, when the server sent `Retry-After`) + the above |
 | `SenderKitApiError` | any other non-2xx (e.g. `409`, `5xx`) | `status`, `code`, `issues`, `requestId` |
@@ -410,6 +413,7 @@ to `maxRetries` with backoff, so a thrown error means retries were exhausted.
 ```ts
 import {
   SenderKit,
+  SenderKitPermissionError,
   SenderKitRateLimitError,
   SenderKitValidationError,
   SenderKitError,
@@ -420,6 +424,8 @@ try {
 } catch (err) {
   if (err instanceof SenderKitValidationError) {
     console.error("Bad request:", err.issues);
+  } else if (err instanceof SenderKitPermissionError) {
+    console.error("Permission denied — key lacks required scope:", err.code);
   } else if (err instanceof SenderKitRateLimitError) {
     console.error(`Rate limited; retry after ${err.retryAfter}ms`);
   } else if (err instanceof SenderKitError) {
@@ -434,7 +440,7 @@ try {
 
 The package exports the `SenderKit` class, every error class above, the
 `VERSION` constant, and types including `SenderKitOptions`, `SenderKitContext`,
-`SendRequest`, `SendRawRequest`, `SendResponse`, `BatchSendOptions`,
+`ApiScope`, `SendRequest`, `SendRawRequest`, `SendResponse`, `BatchSendOptions`,
 `BatchSendResult`, `Attachment`, `EmailEnvelope`, `Template`, `Message`,
 `ListMessagesParams`, `ListMessagesResponse`, and `CancelMessageResponse`.
 

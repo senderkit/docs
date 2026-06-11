@@ -14,6 +14,132 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="June 11, 2026" description="Custom sending domains (Pro)" tags={["Dashboard"]}>
+  ## Custom sending domains
+
+  Pro workspaces can now connect their own sending domains and send from any
+  address on a verified domain — without the shared `@tx.senderkit.email` address
+  appearing to recipients.
+
+  **How it works:**
+
+  - Add a domain in **Dashboard → Channels → Add domain** (Pro-gated; free
+    workspaces see an upgrade prompt).
+  - Publish four DNS records: a white-label DKIM TXT record at
+    `senderkit._domainkey.{domain}`, an MX + SPF pair on `send.{domain}` for the
+    custom MAIL FROM, and optionally a root SPF and DMARC record. The dashboard
+    shows the exact values to copy and probes DNS live once records are detected.
+  - SenderKit verifies the domain (polls every 5 minutes; **Check now** button for
+    immediate re-check). Verification completes within minutes once records
+    propagate; claims expire after 72 hours.
+  - Once verified, the domain activates as a **managed connection** in Channels.
+    It can be set as the workspace default or targeted per template. The shared
+    `tx.senderkit.email` sender stays as the implicit fallback.
+
+  **From-address override** — raw sends (`POST /v1/send-raw`, `senderkit send-raw`,
+  `senderkit_send_raw`) now honor a `from` address whose domain exactly matches a
+  verified custom domain:
+
+  ```ts
+  await senderkit.sendRaw({
+    channel: "email",
+    to: "customer@example.com",
+    from: "billing@acme.com",   // acme.com must be verified
+    content: { subject: "Your invoice", html: "…" },
+  });
+  ```
+
+  Custom-domain connections have their own per-connection cap tier and billing
+  meter, separate from the built-in shared sender caps.
+
+  See [Channels → Custom sending domains](/concepts/channels-and-providers#custom-sending-domains-pro).
+</Update>
+
+<Update label="June 11, 2026" description="v0.8.0 — API key scopes enforced, SenderKitPermissionError" tags={["SDK", "CLI"]}>
+  ## Least-privilege API key scopes
+
+  API keys now carry an enforced scope set. Previously, scopes were stored but
+  never checked — every valid key had full access. Starting with this release, a
+  scoped key used outside its grant returns `403` with `code: "insufficient_scope"`.
+
+  ### Scope model
+
+  Three scopes: `read` · `send` · `cancel`. All three are granted by default when
+  creating a key; the dashboard scope picker lets you restrict to fewer. Keys minted
+  without explicit scopes remain **unscoped** (full access) — no migration needed,
+  no existing integrations break.
+
+  | Scope | Covers |
+  | --- | --- |
+  | `read` | Messages, templates, context reads |
+  | `send` | `POST /v1/send`, `POST /v1/send-raw`, draft template operations |
+  | `cancel` | `DELETE /v1/messages/{id}` |
+
+  ### TypeScript SDK (`@senderkit/sdk` v0.8.0)
+
+  **New `SenderKitPermissionError`** — `403` responses now throw
+  `SenderKitPermissionError` instead of the previous `SenderKitAuthenticationError`.
+  Because it extends `SenderKitApiError`, existing `catch (SenderKitApiError)` blocks
+  still handle it; add a specific `SenderKitPermissionError` branch to distinguish
+  scope errors from auth errors:
+
+  ```ts
+  import {
+    SenderKitPermissionError,
+    SenderKitAuthenticationError,
+  } from "@senderkit/sdk";
+
+  try {
+    await senderkit.send(…);
+  } catch (err) {
+    if (err instanceof SenderKitPermissionError) {
+      // Key is valid but lacks the required scope
+    } else if (err instanceof SenderKitAuthenticationError) {
+      // Key is bad/missing/revoked
+    }
+  }
+  ```
+
+  **New `ApiScope` type** — `"read" | "send" | "cancel"`, exported from
+  `@senderkit/sdk`.
+
+  ### CLI (`@senderkit/cli` v0.6.1)
+
+  A `403` is now reported as **"Permission denied: … The API key is valid but
+  lacks the required scope."** (JSON: `type: "permission"`) instead of the
+  previous misleading "Authentication failed" message.
+
+  See [Authentication → Scopes](/authentication#scopes) and the
+  [SDK error reference](/sdks/typescript#error-handling).
+</Update>
+
+<Update label="June 8, 2026" description="CLI: senderkit mcp install defaults to hosted OAuth" tags={["CLI"]}>
+  ## `senderkit mcp install` now defaults to hosted OAuth
+
+  `senderkit mcp install` now writes a **hosted endpoint config** (`url`-only,
+  pointing at `https://mcp.senderkit.com`) with OAuth by default — no API key is
+  stored on disk and your MCP client handles sign-in. Previously the default was a
+  local stdio subprocess with an API key.
+
+  ```bash
+  # Hosted OAuth config for every detected client (new default — no API key stored)
+  senderkit mcp install
+
+  # Hosted with API key bearer auth instead of OAuth
+  senderkit mcp install --api-key-auth
+
+  # Local stdio subprocess (previous default, now opt-in)
+  senderkit mcp install --local
+  ```
+
+  Codex users get a native streamable-HTTP `url` in `config.toml` (no longer
+  bridged through `mcp-remote`), and can sign in with `codex mcp login senderkit`.
+
+  The `--remote` flag is kept as a no-op alias for back-compat (it now just
+  selects the new default behavior). The `--local` + `--url` combination is
+  rejected with a clear error.
+</Update>
+
 <Update label="June 7, 2026" description="MCP template generation tools" tags={["MCP"]}>
   ## AI-powered template creation via MCP
 
