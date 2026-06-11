@@ -67,8 +67,8 @@ the built-in sender and the caps no longer apply.
 ## Custom sending domains (Pro)
 
 Pro workspaces can connect their own sending domains and send from any address on a
-verified domain — no `@tx.senderkit.email` address visible to recipients, no
-`amazonses.com` in DNS records.
+verified domain — without the shared `@tx.senderkit.email` address appearing to
+recipients.
 
 Adding a domain creates a dedicated **managed-SES connection** in the Channels page.
 The built-in shared sender remains as the implicit fallback; your domain connection
@@ -81,7 +81,7 @@ and recommended DNS records:
 
 | Record | Type | Purpose | Required? |
 | --- | --- | --- | --- |
-| `senderkit._domainkey.{domain}` | TXT | DKIM public key (white-label — no `amazonses.com`) | Yes |
+| `senderkit._domainkey.{domain}` | TXT | DKIM public key (white-label) | Yes |
 | `send.{domain}` | MX | Custom MAIL FROM subdomain | Yes |
 | `send.{domain}` | TXT | MAIL FROM SPF | Yes |
 | `_dmarc.{domain}` | TXT | DMARC policy | Recommended |
