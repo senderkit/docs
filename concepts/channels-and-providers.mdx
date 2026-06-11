@@ -70,7 +70,7 @@ Pro workspaces can connect their own sending domains and send from any address o
 verified domain — without the shared `@tx.senderkit.email` address appearing to
 recipients.
 
-Adding a domain creates a dedicated **managed-SES connection** in the Channels page.
+Adding a domain creates a dedicated **managed connection** in the Channels page.
 The built-in shared sender remains as the implicit fallback; your domain connection
 can be set as the workspace default or targeted per template.
 
@@ -89,16 +89,16 @@ and recommended DNS records:
 
 The dashboard probes DNS live and shows a green **Set** indicator once each record is
 detected. Recommended records improve deliverability reputation (e.g. third-party
-checkers like MXToolbox test the root domain) but don't gate verification. If you
-already have a root SPF record from another provider, merge `include:amazonses.com`
-into it rather than publishing a second `v=spf1` record.
+checkers like MXToolbox test the root domain) but don't gate verification. The
+dashboard shows the exact record values to copy — if you already have a root SPF
+record, merge the SenderKit SPF mechanism into it rather than publishing a second
+`v=spf1` record.
 
 ### Verification
 
 SenderKit polls DNS every 5 minutes. You can also click **Check now** at any time.
-Verification typically completes within minutes once records propagate. Amazon SES
-grants a 72-hour window — if the domain isn't verified in time, the claim expires and
-you can resubmit.
+Verification typically completes within minutes once records propagate. Claims expire
+after 72 hours — if the domain isn't verified in time, you can resubmit.
 
 ### From-address override on raw sends
 
