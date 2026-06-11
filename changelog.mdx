@@ -28,11 +28,11 @@ This page tracks releases of SenderKit's developer libraries — the
   - Publish four DNS records: a white-label DKIM TXT record at
     `senderkit._domainkey.{domain}`, an MX + SPF pair on `send.{domain}` for the
     custom MAIL FROM, and optionally a root SPF and DMARC record. The dashboard
-    probes DNS live and shows a green **Set** indicator once each record is detected.
-  - SenderKit verifies the domain via Amazon SES (polls every 5 minutes; **Check
-    now** button for immediate re-check). Verification completes within minutes once
-    records propagate; the SES window is 72 hours.
-  - Once verified, the domain activates as a **managed-SES connection** in Channels.
+    shows the exact values to copy and probes DNS live once records are detected.
+  - SenderKit verifies the domain (polls every 5 minutes; **Check now** button for
+    immediate re-check). Verification completes within minutes once records
+    propagate; claims expire after 72 hours.
+  - Once verified, the domain activates as a **managed connection** in Channels.
     It can be set as the workspace default or targeted per template. The shared
     `tx.senderkit.email` sender stays as the implicit fallback.
 
