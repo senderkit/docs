@@ -110,7 +110,7 @@ send a status update to this list." See
   Email plain-text body.
 </ParamField>
 <ParamField path="from" type="string">
-  Email from-address override.
+  Email from-address override. Must match a [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains-pro) when using the managed email sender.
 </ParamField>
 <ParamField path="body" type="string">
   Message body. Required for `channel: "sms"`, `channel: "push"`, and
@@ -289,6 +289,9 @@ Tool failures come back as MCP errors with a single text message. The shape:
 - **Domain** — `<code>: <message>` from the underlying API. e.g.
   `template_not_found: No template "welcom"`, `rate_limited: Too many requests`.
 - **Auth** — `unauthorized` on a missing or invalid API key.
+- **Permission** — `insufficient_scope` when the key is valid but doesn't hold
+  the scope required by the called tool. See
+  [Authentication → Scopes](/authentication#scopes).
 
 If your agent isn't doing what you expect, ask it to print the raw tool error.
 The text matches the [REST API's](/api-reference/introduction) `code` /
