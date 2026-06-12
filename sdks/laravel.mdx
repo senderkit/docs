@@ -1,0 +1,214 @@
+---
+title: "Laravel"
+description: "SenderKit for Laravel — notification channel, mail transport, and webhook middleware."
+icon: 'laravel'
+---
+
+`senderkit/senderkit-laravel` integrates the
+[PHP SDK core](/sdks/php) with Laravel's notification system, mail
+infrastructure, and HTTP routing.
+
+## Install
+
+```bash
+composer require senderkit/senderkit-laravel
+php artisan vendor:publish --tag=senderkit-config
+```
+
+Add credentials to `.env`:
+
+```bash
+SENDERKIT_API_KEY=sk_live_…
+SENDERKIT_WEBHOOK_SECRET=whsec_…   # required for webhook middleware
+```
+
+The service provider auto-discovers via Laravel's package discovery. You can
+also resolve `SenderKit\Client` directly from the container, or use the
+`SenderKit` facade:
+
+```php
+use SenderKit\Laravel\Facades\SenderKit;
+use SenderKit\Request\TemplateSend;
+
+SenderKit::send(new TemplateSend(template: 'welcome', to: $user->email));
+
+SenderKit::messages()->list();
+SenderKit::templates()->list();
+```
+
+---
+
+## Notification channel
+
+The `senderkit` channel delivers template-based notifications across all four
+channels (email, SMS, push, web push). It is the recommended path for new
+code — templates are versioned, previewable in the dashboard, and carry
+per-template analytics.
+
+Return a `SenderKitMessage` from `toSenderKit()`. For email notifications the
+recipient resolves from the notifiable's `senderkit` route, falling back to
+the `mail` route — so a `User` model with an `email` property works without
+any extra setup:
+
+```php
+use Illuminate\Notifications\Notification;
+use SenderKit\Laravel\Notifications\SenderKitMessage;
+
+class OrderShipped extends Notification
+{
+    public function __construct(private Order $order) {}
+
+    public function via(object $notifiable): array
+    {
+        return ['senderkit'];
+    }
+
+    public function toSenderKit(object $notifiable): SenderKitMessage
+    {
+        return SenderKitMessage::template('order-shipped')
+            ->vars(['order_id' => $this->order->id, 'name' => $notifiable->name]);
+    }
+}
+```
+
+`SenderKitMessage` supports the full set of send options:
+
+| Method | Description |
+| --- | --- |
+| `->vars(array $vars)` | Template variables |
+| `->channel(Channel $channel)` | Force a channel (see below) |
+| `->version(int $version)` | Pin a template version |
+| `->metadata(array $metadata)` | Attach metadata to the message |
+| `->scheduledAt(\DateTimeInterface\|string $at)` | Defer delivery |
+| `->cc(array $addresses)` | Cc (email only) |
+| `->bcc(array $addresses)` | Bcc (email only) |
+| `->replyTo(string $address)` | Reply-To (email only) |
+| `->attachments(array $attachments)` | Attachments (email only) |
+| `->idempotencyKey(string $key)` | Explicit idempotency key |
+| `->to(string $recipient)` | Override the resolved recipient |
+
+### SMS, push, and web push
+
+Email notifications fall back to the notifiable's `mail` route automatically.
+For other channels, expose a `routeNotificationForSenderkit()` method that
+returns either a string (used for all channels) or a channel-keyed map:
+
+```php
+use SenderKit\Enum\Channel;
+
+// On the notifiable (e.g. User):
+public function routeNotificationForSenderkit(): array
+{
+    return [
+        'email'    => $this->email,
+        'sms'      => $this->phone,
+        'push'     => $this->device_token,
+        'web-push' => $this->web_push_subscription,
+    ];
+}
+
+// In the notification:
+public function toSenderKit(object $notifiable): SenderKitMessage
+{
+    return SenderKitMessage::template('otp')
+        ->channel(Channel::Sms)
+        ->vars(['code' => $this->code]);
+}
+```
+
+SMS, push, and web push are silently skipped if no matching route is found and
+no explicit `->to()` is set. Only email falls back to the `mail` route.
+
+### Fan-out across channels
+
+`toSenderKit()` can return an array of `SenderKitMessage` objects to dispatch
+the notification on multiple channels in a single call:
+
+```php
+public function toSenderKit(object $notifiable): array
+{
+    $vars = ['order_id' => $this->order->id, 'name' => $notifiable->name];
+
+    return [
+        SenderKitMessage::template('order-shipped')->vars($vars),
+        SenderKitMessage::template('order-shipped')->vars($vars)->channel(Channel::Push),
+    ];
+}
+```
+
+---
+
+## Mail transport
+
+The `senderkit` mail driver routes an existing Mailable-based app through
+SenderKit without code changes — no need to rewrite `Mail::to(...)->send(...)`
+calls, queued mail jobs, or `mail`-channel notifications.
+
+Add a mailer entry to `config/mail.php`:
+
+```php
+'mailers' => [
+    'senderkit' => ['transport' => 'senderkit'],
+],
+```
+
+Then set `MAIL_MAILER=senderkit`. All outgoing mail now delivers through
+SenderKit.
+
+<Note>
+  The transport renders your Mailable to HTML locally, then uses a **raw
+  send** — bypassing SenderKit templates. You lose versioning, dashboard
+  preview, and per-template analytics. The mail transport is the right path
+  for **migrating** existing Mailable-based code. For new notifications,
+  prefer the `senderkit` notification channel above.
+</Note>
+
+A few things to know:
+
+- **Text-only emails** — the transport generates an escaped-HTML fallback
+  automatically (the API requires an HTML body).
+- **Multiple `to` recipients** — fanned out as one API call per recipient.
+
+---
+
+## Webhooks
+
+The `VerifyWebhookSignature` middleware verifies the incoming request
+signature and attaches the parsed event to `$request->attributes`.
+
+```php
+use SenderKit\Laravel\Http\Middleware\VerifyWebhookSignature;
+
+Route::post('/webhooks/senderkit', function (Request $request) {
+    /** @var \SenderKit\Webhook\WebhookEvent $event */
+    $event = $request->attributes->get('senderkit_event');
+
+    match ($event->type) {
+        'message.delivered' => handleDelivered($event->payload),
+        'message.failed'    => handleFailed($event->payload),
+        default             => null,
+    };
+
+    return response()->noContent();
+})->middleware(VerifyWebhookSignature::class);
+```
+
+- Invalid signatures → `400`
+- Missing `senderkit.webhook_secret` config → `500`
+
+See [Webhooks](/webhooks) for the full event-type list and payload schema.
+
+<CardGroup cols={2}>
+  <Card title="PHP SDK core" icon="php" href="/sdks/php">
+    Client API, error handling, and bare-PHP webhook verifier.
+  </Card>
+  <Card title="Symfony" icon="symfony" href="/sdks/symfony">
+    Bundle autowiring and Symfony webhook verifier.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/webhooks">
+    Event types and payload schema.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    API keys, scopes, and test vs. live mode.
+  </Card>
+</CardGroup>
