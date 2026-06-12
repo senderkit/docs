@@ -1,37 +1,33 @@
 ---
 title: "PHP SDK"
-description: "The official SenderKit PHP SDK — senderkit/senderkit-php with first-class Laravel and Symfony support."
+description: "The official SenderKit PHP SDK — framework-agnostic core for PHP 8.1+."
 icon: 'php'
 ---
 
-The PHP SDK ships as three Composer packages in a monorepo:
+The PHP SDK ships as three Composer packages. This page covers the
+**framework-agnostic core** (`senderkit/senderkit-php`). For framework
+integrations see the dedicated pages:
 
-| Package | Description |
-| --- | --- |
-| `senderkit/senderkit-php` | Framework-agnostic core — requires any [PSR-18](https://www.php-fig.org/psr/psr-18/) HTTP client. |
-| `senderkit/senderkit-laravel` | Laravel service provider, facade, notification channel, mail transport, and webhook middleware. |
-| `senderkit/senderkit-symfony` | Symfony bundle with autowiring and a webhook request verifier. |
+<CardGroup cols={2}>
+  <Card title="Laravel" icon="laravel" href="/sdks/laravel">
+    Service provider, notification channel, mail transport, and webhook middleware.
+  </Card>
+  <Card title="Symfony" icon="symfony" href="/sdks/symfony">
+    Bundle with autowiring and a webhook request verifier.
+  </Card>
+</CardGroup>
 
 ## Requirements
 
 - PHP 8.1+
-- A PSR-18 HTTP client — Guzzle or `symfony/http-client` are auto-discovered; you can also inject your own.
+- A PSR-18 HTTP client — Guzzle or `symfony/http-client` are auto-discovered;
+  you can also inject your own.
 
 ## Install
 
-<CodeGroup>
-  ```bash Core only
-  composer require senderkit/senderkit-php
-  ```
-
-  ```bash Laravel
-  composer require senderkit/senderkit-laravel
-  ```
-
-  ```bash Symfony
-  composer require senderkit/senderkit-symfony
-  ```
-</CodeGroup>
+```bash
+composer require senderkit/senderkit-php
+```
 
 ## Quickstart
 
@@ -66,9 +62,9 @@ new SenderKit\Client(
 ```
 
 <ParamField path="apiKey" type="string" required>
-  Your API key — must start with `sk_live_` (live mode) or `sk_test_` (test mode).
-  The constructor throws `\InvalidArgumentException` for any other prefix. See
-  [Authentication](/authentication).
+  Your API key — must start with `sk_live_` (live mode) or `sk_test_` (test
+  mode). The constructor throws `\InvalidArgumentException` for any other
+  prefix. See [Authentication](/authentication).
 </ParamField>
 
 <ParamField path="baseUrl" type="string" default="https://api.senderkit.com">
@@ -80,17 +76,18 @@ new SenderKit\Client(
 </ParamField>
 
 <ParamField path="maxRetries" type="int" default="2">
-  Max retry attempts for transient failures — network errors, timeouts, `429`, and
-  `5xx`. Retries use exponential backoff with jitter.
+  Max retry attempts for transient failures — network errors, timeouts, `429`,
+  and `5xx`. Retries use exponential backoff with jitter.
 </ParamField>
 
 <ParamField path="httpClient" type="?ClientInterface">
-  Inject a PSR-18 HTTP client. Defaults to auto-discovery via `php-http/discovery`
-  (Guzzle or `symfony/http-client` if either is installed).
+  Inject a PSR-18 HTTP client. Defaults to auto-discovery via
+  `php-http/discovery` (Guzzle or `symfony/http-client` if either is
+  installed).
 </ParamField>
 
-The `$client->mode` property (`'live'` or `'test'`) is set as a read-only value after
-construction, derived from the API key prefix.
+The `$client->mode` property (`'live'` or `'test'`) is set as a read-only
+value after construction, derived from the API key prefix.
 
 ## `send()`
 
@@ -119,8 +116,8 @@ $client->send(TemplateSend $request): SendResult
 </ParamField>
 
 <ParamField path="version" type="?int">
-  Pin a specific template [version](/concepts/versioning). Omit to use the current
-  published version for the environment.
+  Pin a specific template [version](/concepts/versioning). Omit to use the
+  current published version for the environment.
 </ParamField>
 
 <ParamField path="metadata" type="array<string,string|int|bool|float>">
@@ -129,14 +126,14 @@ $client->send(TemplateSend $request): SendResult
 </ParamField>
 
 <ParamField path="scheduledAt" type="DateTimeInterface|string|null">
-  Defer delivery to a future time — a `DateTimeInterface` or an ISO 8601 string.
-  Must be in the future and within 30 days. The response comes back with
-  `status: "scheduled"`. See [Sending](/concepts/sending).
+  Defer delivery to a future time — a `DateTimeInterface` or an ISO 8601
+  string. Must be in the future and within 30 days. See
+  [Sending](/concepts/sending).
 </ParamField>
 
 <ParamField path="idempotencyKey" type="?string">
-  Idempotency key. **If omitted, the SDK auto-generates one** so a retried request
-  never duplicates a send. Reusing a key returns the original message.
+  Idempotency key. **If omitted, the SDK auto-generates one** so a retried
+  request never duplicates a send. Reusing a key returns the original message.
 </ParamField>
 
 <ParamField path="cc / bcc" type="list<string>|null">
@@ -149,14 +146,14 @@ $client->send(TemplateSend $request): SendResult
 
 <ParamField path="attachments" type="list<Attachment>|null">
   File or inline attachments (email only). Each `Attachment` takes `filename`,
-  `contentType`, `content` (base64-encoded bytes), and optional `inline`/`contentId`.
-  Provider caps total across all attachments at 10 MB.
+  `contentType`, `content` (base64-encoded bytes), and optional
+  `inline`/`contentId`. Provider caps total across all attachments at 10 MB.
 </ParamField>
 
 ### Response
 
-`SendResult` has three properties: `id` (e.g. `"msg_…"`), `status` (`"queued"` or
-`"scheduled"`), and `livemode` (bool).
+`SendResult` has three properties: `id` (e.g. `"msg_…"`), `status`
+(`"queued"` or `"scheduled"`), and `livemode` (bool).
 
 ```php
 $result = $client->send(new TemplateSend(
@@ -174,8 +171,8 @@ $result = $client->send(new TemplateSend(
 
 ## `sendRaw()`
 
-Send inline content without a registered template. Pass one of the typed content
-classes — the channel is inferred from the content type.
+Send inline content without a registered template. Pass one of the typed
+content classes — the channel is inferred from the content type.
 
 ```php
 $client->sendRaw(RawSend $request): SendResult
@@ -196,8 +193,8 @@ $client->sendRaw(RawSend $request): SendResult
 </ParamField>
 
 <ParamField path="interpolate" type="?bool">
-  Set `true` to run server-side variable substitution over the raw content using
-  the `vars` values.
+  Set `true` to run server-side variable substitution over the raw content
+  using the `vars` values.
 </ParamField>
 
 <Tabs>
@@ -258,9 +255,9 @@ $client->sendRaw(RawSend $request): SendResult
 
 ## `sendBatch()`
 
-Send many messages sequentially with per-item error isolation. A failure on one
-item never throws — each result carries a success flag so the rest of the batch
-is not affected.
+Send many messages sequentially with per-item error isolation. A failure on
+one item never throws — each result carries a success flag so the rest of the
+batch is not affected.
 
 ```php
 /** @param list<TemplateSend|RawSend> $requests */
@@ -268,8 +265,8 @@ $client->sendBatch(array $requests, ?BatchOptions $options = null): list<BatchRe
 ```
 
 <ParamField path="options->idempotencyKey" type="?string">
-  Base idempotency key. Each item is dispatched with `{key}-{index}` unless the
-  item already carries its own key.
+  Base idempotency key. Each item is dispatched with `{key}-{index}` unless
+  the item already carries its own key.
 </ParamField>
 
 Each `BatchResult`:
@@ -302,7 +299,8 @@ $client->context(): Context
 ```
 
 Returns a `Context` object with `workspace` (`id`, `slug`, `name`) and `mode`
-(`'live'` or `'test'`). Mirrors [`GET /v1/context`](/api-reference/introduction).
+(`'live'` or `'test'`). Mirrors
+[`GET /v1/context`](/api-reference/introduction).
 
 ```php
 $ctx = $client->context();
@@ -318,12 +316,12 @@ $client->templates->get(string $slug): Template
 ```
 
 `list()` returns templates without their version body. `get($slug)` includes
-`currentVersion` (`versionNumber`, `variables`, `publishedAt`). A `Template` has
-`slug`, `channel`, `description`, `status`, and `updatedAt`.
+`currentVersion` (`versionNumber`, `variables`, `publishedAt`). A `Template`
+has `slug`, `channel`, `description`, `status`, and `updatedAt`.
 
 <Note>
-  The `content` (raw HTML/blocks) field is intentionally omitted from `list()` and
-  `get()` responses to keep payloads lean. Use the dashboard or the
+  The `content` (raw HTML/blocks) field is intentionally omitted from `list()`
+  and `get()` responses to keep payloads lean. Use the dashboard or the
   `/v1/templates/{slug}/render` endpoint when you need the rendered output.
 </Note>
 
@@ -341,14 +339,13 @@ $client->messages->get(string $id): Message
 $client->messages->cancel(string $id): CancelMessageResponse
 ```
 
-`cancel()` only works on `scheduled` or `queued` messages — later states return a
-`409` (`ApiException`). `list()` returns `data` (array of `Message`) and
-`nextCursor` (string or null).
+`cancel()` only works on `scheduled` or `queued` messages — later states
+return a `409` (`ApiException`). `list()` returns `data` (array of `Message`)
+and `nextCursor` (string or null).
 
 ```php
 use SenderKit\Request\ListMessagesParams;
 
-// Page through failed emails
 $cursor = null;
 do {
     $page = $client->messages->list(new ListMessagesParams(
@@ -363,7 +360,6 @@ do {
     $cursor = $page->nextCursor;
 } while ($cursor !== null);
 
-// Cancel a scheduled message
 $client->messages->cancel('msg_…');
 ```
 
@@ -387,8 +383,8 @@ The SDK retries `429`, `5xx`, network, and timeout failures up to `$maxRetries`
 with backoff, so a thrown exception means retries were exhausted.
 
 A `403 insufficient_scope` error (scoped key used outside its grant) comes back
-as `ApiException` with `$status = 403` and `$apiCode = "insufficient_scope"`. See
-[Authentication → Scopes](/authentication#scopes).
+as `ApiException` with `$status = 403` and `$apiCode = "insufficient_scope"`.
+See [Authentication → Scopes](/authentication#scopes).
 
 ```php
 use SenderKit\Exception\{
@@ -402,18 +398,15 @@ use SenderKit\Exception\{
 try {
     $client->send(new TemplateSend('welcome', 'user@example.com'));
 } catch (ValidationException $e) {
-    // Bad request — inspect $e->issues
     var_dump($e->issues);
 } catch (AuthenticationException $e) {
     // Invalid or revoked key
 } catch (RateLimitException $e) {
-    // $e->retryAfterMs: milliseconds to wait before retrying
     usleep($e->retryAfterMs * 1000);
 } catch (ApiException $e) {
-    // Other API error — check $e->status and $e->apiCode
     error_log("API error {$e->status}: {$e->apiCode}");
 } catch (SenderKitException $e) {
-    // Network or timeout failure
+    // Network or timeout
 }
 ```
 
@@ -434,243 +427,26 @@ try {
     exit;
 }
 
-echo $event->type;   // e.g. "message.delivered"
-echo $event->id;     // delivery ID
-$event->payload;     // decoded JSON body as array<string, mixed>
+echo $event->type;  // e.g. "message.delivered"
+$event->payload;    // decoded JSON body as array<string, mixed>
 ```
 
-`verify()` checks the HMAC-SHA256 signature and validates that the timestamp is
-within 300 seconds (configurable via `$toleranceSeconds`). It throws
-`SignatureVerificationException` on any failure — empty secret, malformed header,
-stale timestamp, or signature mismatch.
+`verify()` checks the HMAC-SHA256 signature and validates that the timestamp
+is within 300 seconds (configurable via `$toleranceSeconds`). It throws
+`SignatureVerificationException` on any failure — empty secret, malformed
+header, stale timestamp, or signature mismatch.
 
 See [Webhooks](/webhooks) for the full event-type list and payload schema.
 
----
-
-## Laravel
-
-### Install
-
-```bash
-composer require senderkit/senderkit-laravel
-php artisan vendor:publish --tag=senderkit-config
-```
-
-Add credentials to `.env`:
-
-```bash
-SENDERKIT_API_KEY=sk_live_…
-SENDERKIT_WEBHOOK_SECRET=whsec_…   # required for webhook middleware
-```
-
-The service provider registers automatically via Laravel package discovery. You
-can also inject `SenderKit\Client` directly from the container anywhere the DI
-container is available.
-
-### Notification channel (recommended)
-
-The `senderkit` channel delivers template-based notifications across all four
-channels (email, SMS, push, web push). Return a `SenderKitMessage` from
-`toSenderKit()`. The recipient resolves from the notifiable's `senderkit` route,
-falling back to the `mail` route — so a `User` model with an `email` property
-works without extra setup:
-
-```php
-use Illuminate\Notifications\Notification;
-use SenderKit\Laravel\Notifications\SenderKitMessage;
-
-class OrderShipped extends Notification
-{
-    public function __construct(private Order $order) {}
-
-    public function via(object $notifiable): array
-    {
-        return ['senderkit'];
-    }
-
-    public function toSenderKit(object $notifiable): SenderKitMessage
-    {
-        return SenderKitMessage::template('order-shipped')
-            ->vars(['order_id' => $this->order->id, 'name' => $notifiable->name]);
-    }
-}
-```
-
-`SenderKitMessage` supports the full set of send options: `version()`, `channel()`,
-`metadata()`, `scheduledAt()`, `cc()`, `bcc()`, `replyTo()`, `attachments()`,
-`idempotencyKey()`, and an explicit `to()` override.
-
-### SMS, push, and web push
-
-Email notifications fall back to the notifiable's `mail` route automatically.
-For other channels, expose a `routeNotificationForSenderkit()` method that returns
-either a string (used for any channel) or a channel-keyed map:
-
-```php
-use SenderKit\Enum\Channel;
-
-// On the notifiable (e.g. User):
-public function routeNotificationForSenderkit(): array
-{
-    return [
-        'email'    => $this->email,
-        'sms'      => $this->phone,
-        'push'     => $this->device_token,
-        'web-push' => $this->web_push_subscription,
-    ];
-}
-
-// In the notification:
-public function toSenderKit(object $notifiable): SenderKitMessage
-{
-    return SenderKitMessage::template('otp')
-        ->channel(Channel::Sms)
-        ->vars(['code' => $this->code]);
-}
-```
-
-`toSenderKit()` can also return an array of `SenderKitMessage` objects to fan out
-across multiple channels in a single notification dispatch.
-
-### Mail transport (for existing Mailables)
-
-The `senderkit` mail driver routes an existing Mailable-based app through
-SenderKit without code changes. Add a mailer entry in `config/mail.php`:
-
-```php
-'mailers' => [
-    'senderkit' => ['transport' => 'senderkit'],
-],
-```
-
-Then set `MAIL_MAILER=senderkit`. All `Mail::to(...)->send(...)` calls, queued
-mail jobs, and `mail`-channel notifications now deliver via SenderKit.
-
-<Note>
-  The transport renders your Mailable to HTML locally, so these messages use raw
-  sends — bypassing SenderKit templates (no versioning, preview, or per-template
-  analytics). It is the right path for **migrating** existing Mailable-based code.
-  For new notifications, prefer the `senderkit` notification channel above.
-</Note>
-
-### Webhooks
-
-```php
-use SenderKit\Laravel\Http\Middleware\VerifyWebhookSignature;
-
-Route::post('/webhooks/senderkit', function (Request $request) {
-    /** @var \SenderKit\Webhook\WebhookEvent $event */
-    $event = $request->attributes->get('senderkit_event');
-
-    match ($event->type) {
-        'message.delivered' => /* … */,
-        'message.failed'    => /* … */,
-        default             => null,
-    };
-
-    return response()->noContent();
-})->middleware(VerifyWebhookSignature::class);
-```
-
-The middleware verifies the request signature and attaches the parsed
-`WebhookEvent` to `$request->attributes`. Invalid signatures return `400`; a
-missing `senderkit.webhook_secret` config returns `500`.
-
----
-
-## Symfony
-
-### Install
-
-```bash
-composer require senderkit/senderkit-symfony
-```
-
-Symfony Flex registers the bundle automatically. Otherwise add it to
-`config/bundles.php`:
-
-```php
-SenderKit\Symfony\SenderKitBundle::class => ['all' => true],
-```
-
-Configure credentials in `config/packages/senderkit.yaml`:
-
-```yaml
-senderkit:
-    api_key: '%env(SENDERKIT_API_KEY)%'
-    webhook_secret: '%env(SENDERKIT_WEBHOOK_SECRET)%'  # optional; required for webhook verification
-```
-
-### Usage
-
-Autowire `SenderKit\Client` into any service or controller:
-
-```php
-use SenderKit\Client;
-use SenderKit\Request\TemplateSend;
-
-class NotificationService
-{
-    public function __construct(private readonly Client $senderkit) {}
-
-    public function welcome(string $email, string $name): void
-    {
-        $this->senderkit->send(new TemplateSend(
-            template: 'welcome',
-            to: $email,
-            vars: ['name' => $name],
-        ));
-    }
-}
-```
-
-When `symfony/http-client` is installed, the SDK automatically uses the
-framework's PSR-18 HTTP client.
-
-### Webhooks
-
-Inject `SenderKit\Symfony\Webhook\RequestVerifier` and call `verify()`:
-
-```php
-use SenderKit\Symfony\Webhook\RequestVerifier;
-use SenderKit\Exception\SignatureVerificationException;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Attribute\Route;
-
-class WebhookController
-{
-    public function __construct(private readonly RequestVerifier $verifier) {}
-
-    #[Route('/webhooks/senderkit', methods: ['POST'])]
-    public function handle(Request $request): Response
-    {
-        try {
-            $event = $this->verifier->verify($request);
-        } catch (SignatureVerificationException $e) {
-            return new Response('Bad signature', 400);
-        }
-
-        // $event->type, $event->payload, …
-        return new Response('', 204);
-    }
-}
-```
-
-`RequestVerifier::verify()` throws `SignatureVerificationException` on an invalid
-or expired signature, and `\RuntimeException` when `webhook_secret` is not
-configured.
-
 <CardGroup cols={2}>
+  <Card title="Laravel" icon="laravel" href="/sdks/laravel">
+    Notification channel, mail transport, and webhook middleware.
+  </Card>
+  <Card title="Symfony" icon="symfony" href="/sdks/symfony">
+    Bundle autowiring and webhook verifier.
+  </Card>
   <Card title="Sending" icon="paper-plane" href="/concepts/sending">
     Channels, scheduling, and delivery lifecycle.
-  </Card>
-  <Card title="Webhooks" icon="webhook" href="/webhooks">
-    Event types, payload schema, and signature verification.
-  </Card>
-  <Card title="Authentication" icon="key" href="/authentication">
-    API keys, scopes, and test vs. live mode.
   </Card>
   <Card title="API Reference" icon="code" href="/api-reference/introduction">
     The underlying REST endpoints.
