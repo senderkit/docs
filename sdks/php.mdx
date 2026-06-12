@@ -1,0 +1,454 @@
+---
+title: "PHP SDK"
+description: "The official SenderKit PHP SDK — framework-agnostic core for PHP 8.1+."
+icon: 'php'
+---
+
+The PHP SDK ships as three Composer packages. This page covers the
+**framework-agnostic core** (`senderkit/senderkit-php`). For framework
+integrations see the dedicated pages:
+
+<CardGroup cols={2}>
+  <Card title="Laravel" icon="laravel" href="/sdks/laravel">
+    Service provider, notification channel, mail transport, and webhook middleware.
+  </Card>
+  <Card title="Symfony" icon="symfony" href="/sdks/symfony">
+    Bundle with autowiring and a webhook request verifier.
+  </Card>
+</CardGroup>
+
+## Requirements
+
+- PHP 8.1+
+- A PSR-18 HTTP client — Guzzle or `symfony/http-client` are auto-discovered;
+  you can also inject your own.
+
+## Install
+
+```bash
+composer require senderkit/senderkit-php
+```
+
+## Quickstart
+
+```php
+use SenderKit\Client;
+use SenderKit\Request\TemplateSend;
+
+$sk = new Client(apiKey: getenv('SENDERKIT_API_KEY'));
+
+$result = $sk->send(new TemplateSend(
+    template: 'welcome',
+    to: 'user@example.com',
+    vars: ['name' => 'Ada'],
+));
+
+echo $result->id;     // msg_…
+echo $result->status; // queued | scheduled
+```
+
+## Client construction
+
+```php
+new SenderKit\Client(
+    string $apiKey,
+    string $baseUrl = 'https://api.senderkit.com',
+    int $timeoutMs = 30000,
+    int $maxRetries = 2,
+    ?Psr\Http\Client\ClientInterface $httpClient = null,
+    ?Psr\Http\Message\RequestFactoryInterface $requestFactory = null,
+    ?Psr\Http\Message\StreamFactoryInterface $streamFactory = null,
+)
+```
+
+<ParamField path="apiKey" type="string" required>
+  Your API key — must start with `sk_live_` (live mode) or `sk_test_` (test
+  mode). The constructor throws `\InvalidArgumentException` for any other
+  prefix. See [Authentication](/authentication).
+</ParamField>
+
+<ParamField path="baseUrl" type="string" default="https://api.senderkit.com">
+  Override the API base URL. Useful for proxies or self-hosted gateways.
+</ParamField>
+
+<ParamField path="timeoutMs" type="int" default="30000">
+  Per-request timeout in milliseconds.
+</ParamField>
+
+<ParamField path="maxRetries" type="int" default="2">
+  Max retry attempts for transient failures — network errors, timeouts, `429`,
+  and `5xx`. Retries use exponential backoff with jitter.
+</ParamField>
+
+<ParamField path="httpClient" type="?ClientInterface">
+  Inject a PSR-18 HTTP client. Defaults to auto-discovery via
+  `php-http/discovery` (Guzzle or `symfony/http-client` if either is
+  installed).
+</ParamField>
+
+The `$client->mode` property (`'live'` or `'test'`) is set as a read-only
+value after construction, derived from the API key prefix.
+
+## `send()`
+
+Send a [templated message](/concepts/templates), substituting
+[variables](/concepts/variables) at send time.
+
+```php
+$client->send(TemplateSend $request): SendResult
+```
+
+<ParamField path="template" type="string" required>
+  Template slug, e.g. `'welcome'`.
+</ParamField>
+
+<ParamField path="to" type="string" required>
+  Recipient address — email, phone number, or push token.
+</ParamField>
+
+<ParamField path="vars" type="array<string,mixed>">
+  Template variables. Defaults to `[]`.
+</ParamField>
+
+<ParamField path="channel" type="Channel">
+  Force a channel (`Channel::Email`, `Channel::Sms`, `Channel::Push`,
+  `Channel::WebPush`). Defaults to the template's primary channel.
+</ParamField>
+
+<ParamField path="version" type="?int">
+  Pin a specific template [version](/concepts/versioning). Omit to use the
+  current published version for the environment.
+</ParamField>
+
+<ParamField path="metadata" type="array<string,string|int|bool|float>">
+  Free-form metadata attached to the message. Indexed server-side, so you can
+  later filter with `messages->list(new ListMessagesParams(metadata: [...]))`.
+</ParamField>
+
+<ParamField path="scheduledAt" type="DateTimeInterface|string|null">
+  Defer delivery to a future time — a `DateTimeInterface` or an ISO 8601
+  string. Must be in the future and within 30 days. See
+  [Sending](/concepts/sending).
+</ParamField>
+
+<ParamField path="idempotencyKey" type="?string">
+  Idempotency key. **If omitted, the SDK auto-generates one** so a retried
+  request never duplicates a send. Reusing a key returns the original message.
+</ParamField>
+
+<ParamField path="cc / bcc" type="list<string>|null">
+  Cc / Bcc recipients. Email only.
+</ParamField>
+
+<ParamField path="replyTo" type="?string">
+  Reply-To address. Email only.
+</ParamField>
+
+<ParamField path="attachments" type="list<Attachment>|null">
+  File or inline attachments (email only). Each `Attachment` takes `filename`,
+  `contentType`, `content` (base64-encoded bytes), and optional
+  `inline`/`contentId`. Provider caps total across all attachments at 10 MB.
+</ParamField>
+
+### Response
+
+`SendResult` has three properties: `id` (e.g. `"msg_…"`), `status`
+(`"queued"` or `"scheduled"`), and `livemode` (bool).
+
+```php
+$result = $client->send(new TemplateSend(
+    template: 'receipt',
+    to: 'user@example.com',
+    vars: ['amount' => '$42.00'],
+    cc: ['accounting@acme.com'],
+    metadata: ['orderId' => 'ord_9'],
+    idempotencyKey: 'receipt:ord_9',
+));
+// $result->id       → "msg_…"
+// $result->status   → "queued"
+// $result->livemode → true
+```
+
+## `sendRaw()`
+
+Send inline content without a registered template. Pass one of the typed
+content classes — the channel is inferred from the content type.
+
+```php
+$client->sendRaw(RawSend $request): SendResult
+```
+
+<ParamField path="to" type="string" required>
+  Recipient address.
+</ParamField>
+
+<ParamField path="content" type="EmailContent|SmsContent|PushContent|WebPushContent" required>
+  Typed content object — determines the channel.
+</ParamField>
+
+<ParamField path="from" type="?string">
+  Email only. Must match a
+  [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains-pro)
+  when using the managed email sender.
+</ParamField>
+
+<ParamField path="interpolate" type="?bool">
+  Set `true` to run server-side variable substitution over the raw content
+  using the `vars` values.
+</ParamField>
+
+<Tabs>
+  <Tab title="email">
+    ```php
+    use SenderKit\Request\{RawSend, EmailContent};
+
+    $client->sendRaw(new RawSend(
+        to: 'user@example.com',
+        content: new EmailContent(
+            subject: 'Welcome, {{name}}',
+            html: '<p>Hello, {{name}}.</p>',
+        ),
+        vars: ['name' => 'Ada'],
+        interpolate: true,
+    ));
+    ```
+  </Tab>
+  <Tab title="sms">
+    ```php
+    use SenderKit\Request\{RawSend, SmsContent};
+
+    $client->sendRaw(new RawSend(
+        to: '+14155551234',
+        content: new SmsContent(body: 'Your code is 042195'),
+    ));
+    ```
+  </Tab>
+  <Tab title="push">
+    ```php
+    use SenderKit\Request\{RawSend, PushContent};
+
+    $client->sendRaw(new RawSend(
+        to: 'device_token_…',
+        content: new PushContent(
+            title: 'Order shipped',
+            body: 'Tracking attached',
+            badge: 1,
+        ),
+    ));
+    ```
+  </Tab>
+  <Tab title="web-push">
+    ```php
+    use SenderKit\Request\{RawSend, WebPushContent};
+
+    $client->sendRaw(new RawSend(
+        to: json_encode($subscription), // JSON-encoded browser PushSubscription
+        content: new WebPushContent(
+            title: 'New order shipped',
+            body: 'Your package is on its way.',
+            clickUrl: 'https://acme.com/orders/ord_123',
+        ),
+    ));
+    ```
+  </Tab>
+</Tabs>
+
+## `sendBatch()`
+
+Send many messages sequentially with per-item error isolation. A failure on
+one item never throws — each result carries a success flag so the rest of the
+batch is not affected.
+
+```php
+/** @param list<TemplateSend|RawSend> $requests */
+$client->sendBatch(array $requests, ?BatchOptions $options = null): list<BatchResult>
+```
+
+<ParamField path="options->idempotencyKey" type="?string">
+  Base idempotency key. Each item is dispatched with `{key}-{index}` unless
+  the item already carries its own key.
+</ParamField>
+
+Each `BatchResult`:
+
+- `$result->ok` — `true` on success, `false` on failure.
+- `$result->index` — position in the input array.
+- `$result->result` — `SendResult` when `ok === true`.
+- `$result->error` — `SenderKitException` when `ok === false`.
+
+```php
+use SenderKit\Request\{BatchOptions, TemplateSend};
+
+$results = $client->sendBatch(
+    array_map(fn($to) => new TemplateSend('digest', $to), $recipients),
+    new BatchOptions(idempotencyKey: 'digest:2026-05-31'),
+);
+
+$failed = array_filter($results, fn($r) => !$r->ok);
+if (count($failed) > 0) {
+    error_log(count($failed) . ' sends failed');
+}
+```
+
+## `context()`
+
+Fetch the workspace the API key belongs to and the active send mode.
+
+```php
+$client->context(): Context
+```
+
+Returns a `Context` object with `workspace` (`id`, `slug`, `name`) and `mode`
+(`'live'` or `'test'`). Mirrors
+[`GET /v1/context`](/api-reference/introduction).
+
+```php
+$ctx = $client->context();
+echo $ctx->workspace->name; // "Acme Inc"
+echo $ctx->mode;            // "live"
+```
+
+## Templates
+
+```php
+$client->templates->list(): array          // array<Template>
+$client->templates->get(string $slug): Template
+```
+
+`list()` returns templates without their version body. `get($slug)` includes
+`currentVersion` (`versionNumber`, `variables`, `publishedAt`). A `Template`
+has `slug`, `channel`, `description`, `status`, and `updatedAt`.
+
+<Note>
+  The `content` (raw HTML/blocks) field is intentionally omitted from `list()`
+  and `get()` responses to keep payloads lean. Use the dashboard or the
+  `/v1/templates/{slug}/render` endpoint when you need the rendered output.
+</Note>
+
+```php
+$templates = $client->templates->list();
+$welcome   = $client->templates->get('welcome');
+echo $welcome->currentVersion?->versionNumber;
+```
+
+## Messages
+
+```php
+$client->messages->list(?ListMessagesParams $params = null): ListMessagesResponse
+$client->messages->get(string $id): Message
+$client->messages->cancel(string $id): CancelMessageResponse
+```
+
+`cancel()` only works on `scheduled` or `queued` messages — later states
+return a `409` (`ApiException`). `list()` returns `data` (array of `Message`)
+and `nextCursor` (string or null).
+
+```php
+use SenderKit\Request\ListMessagesParams;
+
+$cursor = null;
+do {
+    $page = $client->messages->list(new ListMessagesParams(
+        status: 'failed',
+        channel: 'email',
+        cursor: $cursor,
+        limit: 100,
+    ));
+    foreach ($page->data as $msg) {
+        echo $msg->id . ' ' . $msg->recipient . PHP_EOL;
+    }
+    $cursor = $page->nextCursor;
+} while ($cursor !== null);
+
+$client->messages->cancel('msg_…');
+```
+
+## Error handling
+
+All exceptions extend `SenderKitException` (which extends `\RuntimeException`).
+API errors carry `$status`, `$apiCode`, `$issues`, and `$requestId` (quote
+`$requestId` in support requests).
+
+| Class | Thrown when | Extra properties |
+| --- | --- | --- |
+| `ApiException` | Any non-2xx (e.g. `403`, `409`, `5xx`) | `$status`, `$apiCode`, `$issues`, `$requestId` |
+| `AuthenticationException` | `401` — bad, missing, or revoked key | (inherits `ApiException`) |
+| `ValidationException` | `400` / `422` — invalid request | (inherits `ApiException`) |
+| `RateLimitException` | `429` — rate limited | `$retryAfterMs` (milliseconds) + inherited |
+| `TimeoutException` | Request exceeded `$timeoutMs` | — |
+| `NetworkException` | Network-level failure | `$cause` |
+| `SignatureVerificationException` | Invalid or expired webhook signature | — |
+
+The SDK retries `429`, `5xx`, network, and timeout failures up to `$maxRetries`
+with backoff, so a thrown exception means retries were exhausted.
+
+A `403 insufficient_scope` error (scoped key used outside its grant) comes back
+as `ApiException` with `$status = 403` and `$apiCode = "insufficient_scope"`.
+See [Authentication → Scopes](/authentication#scopes).
+
+```php
+use SenderKit\Exception\{
+    AuthenticationException,
+    ValidationException,
+    RateLimitException,
+    ApiException,
+    SenderKitException,
+};
+
+try {
+    $client->send(new TemplateSend('welcome', 'user@example.com'));
+} catch (ValidationException $e) {
+    var_dump($e->issues);
+} catch (AuthenticationException $e) {
+    // Invalid or revoked key
+} catch (RateLimitException $e) {
+    usleep($e->retryAfterMs * 1000);
+} catch (ApiException $e) {
+    error_log("API error {$e->status}: {$e->apiCode}");
+} catch (SenderKitException $e) {
+    // Network or timeout
+}
+```
+
+## Webhooks
+
+```php
+use SenderKit\Webhook\WebhookVerifier;
+use SenderKit\Exception\SignatureVerificationException;
+
+try {
+    $event = (new WebhookVerifier)->verify(
+        rawBody: file_get_contents('php://input'),
+        signatureHeader: $_SERVER['HTTP_X_SENDERKIT_SIGNATURE'],
+        secret: getenv('SENDERKIT_WEBHOOK_SECRET'), // whsec_…
+    );
+} catch (SignatureVerificationException $e) {
+    http_response_code(400);
+    exit;
+}
+
+echo $event->type;  // e.g. "message.delivered"
+$event->payload;    // decoded JSON body as array<string, mixed>
+```
+
+`verify()` checks the HMAC-SHA256 signature and validates that the timestamp
+is within 300 seconds (configurable via `$toleranceSeconds`). It throws
+`SignatureVerificationException` on any failure — empty secret, malformed
+header, stale timestamp, or signature mismatch.
+
+See [Webhooks](/webhooks) for the full event-type list and payload schema.
+
+<CardGroup cols={2}>
+  <Card title="Laravel" icon="laravel" href="/sdks/laravel">
+    Notification channel, mail transport, and webhook middleware.
+  </Card>
+  <Card title="Symfony" icon="symfony" href="/sdks/symfony">
+    Bundle autowiring and webhook verifier.
+  </Card>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    Channels, scheduling, and delivery lifecycle.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    The underlying REST endpoints.
+  </Card>
+</CardGroup>

@@ -38,9 +38,12 @@
             ]
           },
           {
-            "group": "SDK",
+            "group": "SDKs",
             "pages": [
-              "sdks/typescript"
+              "sdks/typescript",
+              "sdks/php",
+              "sdks/laravel",
+              "sdks/symfony"
             ]
           },
           {
@@ -116,6 +119,11 @@
           "anchor": "npm",
           "href": "https://www.npmjs.com/package/@senderkit/sdk",
           "icon": "npm"
+        },
+        {
+          "anchor": "Packagist",
+          "href": "https://packagist.org/packages/senderkit/senderkit-php",
+          "icon": "php"
         }
       ]
     }
