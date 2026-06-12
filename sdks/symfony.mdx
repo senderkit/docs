@@ -1,0 +1,129 @@
+---
+title: "Symfony"
+description: "SenderKit for Symfony — bundle with autowiring and a webhook request verifier."
+icon: 'symfony'
+---
+
+`senderkit/senderkit-symfony` integrates the
+[PHP SDK core](/sdks/php) with Symfony's service container and HTTP
+foundation.
+
+## Install
+
+```bash
+composer require senderkit/senderkit-symfony
+```
+
+Symfony Flex registers the bundle automatically. If you are not using Flex,
+add it to `config/bundles.php`:
+
+```php
+return [
+    // …
+    SenderKit\Symfony\SenderKitBundle::class => ['all' => true],
+];
+```
+
+## Configuration
+
+Create `config/packages/senderkit.yaml`:
+
+```yaml
+senderkit:
+    api_key: '%env(SENDERKIT_API_KEY)%'
+    webhook_secret: '%env(SENDERKIT_WEBHOOK_SECRET)%'  # optional; required for webhook verification
+```
+
+Set the environment variables:
+
+```bash
+SENDERKIT_API_KEY=sk_live_…
+SENDERKIT_WEBHOOK_SECRET=whsec_…
+```
+
+When `symfony/http-client` is installed, the bundle automatically uses the
+framework's PSR-18 HTTP client. Any other PSR-18 client discovered by
+`php-http/discovery` works too.
+
+## Usage
+
+Autowire `SenderKit\Client` into any service or controller:
+
+```php
+use SenderKit\Client;
+use SenderKit\Request\TemplateSend;
+
+class NotificationService
+{
+    public function __construct(private readonly Client $senderkit) {}
+
+    public function welcome(string $email, string $name): void
+    {
+        $this->senderkit->send(new TemplateSend(
+            template: 'welcome',
+            to: $email,
+            vars: ['name' => $name],
+        ));
+    }
+}
+```
+
+All methods on `Client` are available — see the [PHP SDK core](/sdks/php) for
+the full API (`sendRaw`, `sendBatch`, `context`, `messages`, `templates`).
+
+## Webhooks
+
+Inject `SenderKit\Symfony\Webhook\RequestVerifier` and call `verify()`:
+
+```php
+use SenderKit\Symfony\Webhook\RequestVerifier;
+use SenderKit\Exception\SignatureVerificationException;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+
+class WebhookController
+{
+    public function __construct(private readonly RequestVerifier $verifier) {}
+
+    #[Route('/webhooks/senderkit', methods: ['POST'])]
+    public function handle(Request $request): Response
+    {
+        try {
+            $event = $this->verifier->verify($request);
+        } catch (SignatureVerificationException $e) {
+            return new Response('Bad signature', 400);
+        }
+
+        match ($event->type) {
+            'message.delivered' => $this->handleDelivered($event->payload),
+            'message.failed'    => $this->handleFailed($event->payload),
+            default             => null,
+        };
+
+        return new Response('', 204);
+    }
+}
+```
+
+`RequestVerifier::verify()` throws:
+
+- `SignatureVerificationException` — invalid or expired signature.
+- `\RuntimeException` — `webhook_secret` is not configured.
+
+See [Webhooks](/webhooks) for the full event-type list and payload schema.
+
+<CardGroup cols={2}>
+  <Card title="PHP SDK core" icon="php" href="/sdks/php">
+    Client API, error handling, and bare-PHP webhook verifier.
+  </Card>
+  <Card title="Laravel" icon="laravel" href="/sdks/laravel">
+    Notification channel, mail transport, and webhook middleware.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/webhooks">
+    Event types and payload schema.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    API keys, scopes, and test vs. live mode.
+  </Card>
+</CardGroup>
