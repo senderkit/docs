@@ -41,7 +41,9 @@
             "group": "SDKs",
             "pages": [
               "sdks/typescript",
-              "sdks/php"
+              "sdks/php",
+              "sdks/laravel",
+              "sdks/symfony"
             ]
           },
           {
