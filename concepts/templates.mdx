@@ -66,8 +66,10 @@ editor:
 - **Description** — a free-text label visible in the dashboard.
 - **Provider override** — pin this template to a specific provider connection instead
   of the workspace default for the channel.
-- **Slug** — rename the template's identifier. Changing the slug breaks any code or
-  integrations that reference the old name, so a warning is shown.
+- **Slug** — rename the template's identifier. Slugs are always stored in lowercase
+  (`"Welcome-Email"` saves as `"welcome-email"`), so your code must reference them
+  in lowercase. Changing the slug breaks any code or integrations that reference the
+  old name, so a warning is shown.
 - **Duplicate** — clones the latest version's content and variables as a new `draft`
   template (the duplicate button also appears in the editor toolbar). The plan's
   template cap applies.
@@ -82,6 +84,17 @@ editor:
   by design — archived templates remain visible in the dashboard when you switch the
   status filter to include `Archived`.
 </Note>
+
+## Previewing and testing (email only)
+
+The template editor's **Preview** tab renders the current editor content —
+including unsaved edits — through the same engine used at send time. Variable
+placeholders are filled with sample values derived from the template's declared
+variables, so you can verify layout and substitution before publishing.
+
+A **Send test** button in the preview panel dispatches the rendered email to
+your own account address immediately, through the normal delivery path. The test
+send appears in the message log like any other send.
 
 ## Synced blocks
 
