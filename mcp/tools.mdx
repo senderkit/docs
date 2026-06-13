@@ -202,8 +202,9 @@ AI call runs.
   Plain-language description of the message to generate (max 4,000 characters).
 </ParamField>
 <ParamField path="slug" type="string">
-  URL-safe identifier (`letters`, digits, `_` or `-`). Auto-derived from the
-  brief if omitted; a numeric suffix is appended on collision.
+  Lowercase URL-safe identifier (digits, `a-z`, `_`, `-`). Converted to
+  lowercase automatically. Auto-derived from the brief if omitted; a numeric
+  suffix is appended on collision.
 </ParamField>
 <ParamField path="description" type="string">
   Optional internal note (max 280 characters).
@@ -240,9 +241,8 @@ failures." Mirrors `GET /v1/messages`.
 <ParamField path="cursor" type="string">
   Pagination cursor from a previous response.
 </ParamField>
-<ParamField path="status" type="string">
-  Filter by [status](/concepts/messages#the-message-lifecycle) — `"delivered"`,
-  `"failed"`, `"queued"`, etc.
+<ParamField path="status" type='"scheduled" | "queued" | "rendered" | "dispatched" | "sent" | "delivered" | "failed" | "opted_out" | "canceled"'>
+  Filter by [message status](/concepts/messages#the-message-lifecycle).
 </ParamField>
 <ParamField path="channel" type='"email" | "sms" | "push" | "web-push"'>
   Filter by channel.
