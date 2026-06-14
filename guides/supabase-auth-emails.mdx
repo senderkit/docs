@@ -1,0 +1,138 @@
+---
+title: "Supabase auth emails"
+sidebarTitle: "Supabase auth emails"
+description: "Route Supabase auth emails — sign-up confirmation, magic link, password recovery, and more — through SenderKit for custom templates and better deliverability."
+icon: 'shield-check'
+---
+
+Supabase sends its own auth emails (confirm sign-up, magic link, password reset,
+invite, email change, reauthentication) but gives you little control over
+templates or deliverability. By connecting SenderKit as Supabase's **Send Email
+Hook**, every auth email flows through your SenderKit workspace: you own the
+templates, you see delivery events in Logs, and you can align the sending domain
+with your brand.
+
+## One-click setup
+
+<Steps>
+  <Step title="Open the Integrations page">
+    In the SenderKit dashboard, go to **Integrations** and click **Connect Supabase**.
+  </Step>
+  <Step title="Authorize SenderKit in Supabase">
+    You'll be redirected to Supabase to authorize SenderKit to read your projects and
+    manage auth configuration.
+  </Step>
+  <Step title="Pick a project">
+    Select the Supabase project whose auth emails you want to route through SenderKit.
+    Once confirmed, SenderKit automatically:
+
+    - **Mints a signed inbound endpoint** — a dedicated URL and signing secret that
+      Supabase will use to deliver hook payloads.
+    - **Seeds and publishes six auth templates** — one for each Supabase auth action
+      (see [Template slugs](#template-slugs) below). Any existing template with the
+      same slug is left untouched.
+    - **Configures Supabase** — patches the project's Send Email Hook to point at the
+      new endpoint, enables the hook, and increases the project's email rate limit so
+      SenderKit — not Supabase — governs send volume.
+  </Step>
+</Steps>
+
+After connecting, auth emails go through SenderKit immediately. To confirm it's
+working, trigger a sign-up in your Supabase project and check **Logs** in the
+SenderKit dashboard — a message should appear within seconds.
+
+<Note>
+  The one-click integration requires **hosted Supabase** (supabase.com) with a project
+  you manage. If you self-host Supabase, reach out to
+  [hi@senderkit.com](mailto:hi@senderkit.com) for manual endpoint provisioning.
+</Note>
+
+## Customizing the seeded templates
+
+After connecting, find the six `supabase-*` templates in **Templates** and edit them
+as you would any other template. The seeded defaults are functional — update them to
+match your brand.
+
+<Warning>
+  Templates must be **published** before they send in live mode. The auto-seeder
+  publishes the default versions; any edits you save stay as drafts until you publish.
+</Warning>
+
+For best inbox placement, verify a custom sending domain under **Channels → Domains**
+so auth emails are DKIM-signed for your own domain rather than the shared
+`tx.senderkit.email` address.
+
+## Template slugs
+
+SenderKit maps each Supabase auth action to a template by slug:
+
+| Supabase `email_action_type` | Template slug               |
+| ----------------------------- | --------------------------- |
+| `signup`                      | `supabase-signup`           |
+| `magiclink`                   | `supabase-magiclink`        |
+| `recovery`                    | `supabase-recovery`         |
+| `invite`                      | `supabase-invite`           |
+| `email_change`                | `supabase-email-change`     |
+| `reauthentication`            | `supabase-reauthentication` |
+
+An unsupported `email_action_type` returns `200` with no send — Supabase considers
+the hook handled and does not fall back to its built-in mailer or retry.
+
+## Template variables
+
+Every auth email receives the following variables, which mirror Supabase's own
+built-in template variables so you can reuse your existing email copy:
+
+| Variable | Description |
+| --- | --- |
+| `{{ConfirmationURL}}` | Ready-made verification link (see note below) |
+| `{{Token}}` | 6-digit OTP code |
+| `{{TokenHash}}` | Hashed token used in the verification link |
+| `{{Email}}` | Recipient email address |
+| `{{NewEmail}}` | New address being confirmed (`email_change` only) |
+| `{{SiteURL}}` | Your Supabase project's site URL |
+| `{{RedirectTo}}` | Post-verification redirect URL |
+
+At minimum, use `{{ConfirmationURL}}` for link-based flows and `{{Token}}` if you
+display OTP codes.
+
+<Note>
+  Supabase's Send Email Hook payload does not include a pre-built confirmation URL.
+  SenderKit reconstructs it as
+  `{SiteURL}/auth/v1/verify?token={TokenHash}&type={action}&redirect_to={RedirectTo}`,
+  which is identical to what Supabase's own email templates produce.
+</Note>
+
+## Limits and notes
+
+- **5-second timeout.** Supabase requires a hook response within ~5 s. SenderKit
+  enqueues the send asynchronously and responds immediately — this is comfortably met.
+- **Signature verification.** Payloads with an invalid `svix-signature` header return
+  `401`. An unrecognized endpoint token returns `404`.
+- **4xx on misconfiguration, not 5xx.** If a mapped template doesn't exist or isn't
+  published, or the workspace is over quota, the hook returns the real 4xx code (e.g.
+  `404 template_not_found`, `402 message_limit_reached`). Supabase treats 4xx as a
+  permanent failure and will not retry, so the cause is visible in logs rather than
+  triggering a retry storm. Only unexpected transient failures return 5xx.
+- **Unsupported actions are silently accepted.** Any `email_action_type` outside the
+  six above returns `200` with no send.
+- **One endpoint per mode.** The Integrations page creates a live-mode endpoint. To
+  test before going live, use a `sk_test_` key connection with draft templates — sends
+  are recorded but not dispatched to a provider.
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Notify on a database change" icon="database" href="/guides/supabase-notifications">
+    App-domain notifications from Supabase row changes — separate from auth emails.
+  </Card>
+  <Card title="Custom sending domains" icon="envelope-circle-check" href="/concepts/channels-and-providers#custom-sending-domains-pro">
+    DKIM-align auth emails with your own domain for better deliverability.
+  </Card>
+  <Card title="Templates" icon="file-lines" href="/concepts/templates">
+    How to publish, version, and manage templates.
+  </Card>
+  <Card title="Logs" icon="list-check" href="/concepts/messages">
+    Track delivery status for every auth email sent.
+  </Card>
+</CardGroup>

@@ -80,6 +80,7 @@
               "guides/stripe-lifecycle",
               "guides/team-invites",
               "guides/supabase-notifications",
+              "guides/supabase-auth-emails",
               "guides/ai-agent",
               "guides/agent-skills"
             ]
