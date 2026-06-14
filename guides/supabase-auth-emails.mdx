@@ -85,7 +85,7 @@ built-in template variables so you can reuse your existing email copy:
 
 | Variable | Description |
 | --- | --- |
-| `{{ConfirmationURL}}` | Ready-made verification link |
+| `{{ConfirmationURL}}` | Ready-made verification link (see note below) |
 | `{{Token}}` | 6-digit OTP code |
 | `{{TokenHash}}` | Hashed token used in the verification link |
 | `{{Email}}` | Recipient email address |
@@ -95,6 +95,13 @@ built-in template variables so you can reuse your existing email copy:
 
 At minimum, use `{{ConfirmationURL}}` for link-based flows and `{{Token}}` if you
 display OTP codes.
+
+<Note>
+  Supabase's Send Email Hook payload does not include a pre-built confirmation URL.
+  SenderKit reconstructs it as
+  `{SiteURL}/auth/v1/verify?token={TokenHash}&type={action}&redirect_to={RedirectTo}`,
+  which is identical to what Supabase's own email templates produce.
+</Note>
 
 ## Limits and notes
 
