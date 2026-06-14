@@ -39,10 +39,11 @@ template" or "email a notice to user@example.com". Mirrors the
 [`POST /v1/send`](/api-reference/introduction) endpoint.
 
 <ParamField path="template" type="string" required>
-  Template slug, e.g. `"welcome"`. See [Templates](/concepts/templates).
+  Template slug, e.g. `"welcome"`. Slugs are always lowercase. See [Templates](/concepts/templates).
 </ParamField>
 <ParamField path="to" type="string" required>
-  Recipient address — email, phone number, or push token.
+  Recipient address — email address, E.164 phone number, push device token, or
+  JSON-encoded web-push `PushSubscription`.
 </ParamField>
 <ParamField path="vars" type="object">
   Template [variables](/concepts/variables) as a JSON object.
@@ -182,7 +183,7 @@ published version (excluding the raw content blob). Mirrors
 `GET /v1/templates/{slug}`.
 
 <ParamField path="slug" type="string" required>
-  Template slug, e.g. `"welcome"`.
+  Template slug, e.g. `"welcome"`. Slugs are always lowercase.
 </ParamField>
 
 ### `senderkit_templates_create`

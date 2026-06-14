@@ -80,6 +80,7 @@
               "guides/stripe-lifecycle",
               "guides/team-invites",
               "guides/supabase-notifications",
+              "guides/supabase-auth-emails",
               "guides/ai-agent",
               "guides/agent-skills"
             ]
@@ -136,7 +137,7 @@
     "links": [
       {
         "label": "Support",
-        "href": "mailto:hi@senderkit.com"
+        "href": "mailto:support@senderkit.com"
       }
     ],
     "primary": {
