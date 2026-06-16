@@ -14,6 +14,52 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="June 16, 2026" description="Starter plan, updated pricing" tags={["Dashboard", "Billing"]}>
+  ## Starter plan + pricing restructure
+
+  SenderKit's pricing now has four tiers:
+
+  | Plan    | Price   | Templates   | Messages/month | Custom domain |
+  | ------- | ------- | ----------- | -------------- | ------------- |
+  | Free    | $0      | 10          | 500            | No            |
+  | Starter | $5/mo   | Unlimited   | 5,000          | Yes           |
+  | Pro     | $19/mo  | Unlimited   | 50,000         | Yes           |
+  | Custom  | Contact | Unlimited   | Unlimited      | Yes           |
+
+  ### What changed
+
+  - **Free** — template cap raised from 5 → **10**; message cap lowered from 3,000 →
+    **500**/month. The free tier is now scoped for evaluation and low-volume personal
+    projects rather than production transactional mail.
+  - **Starter** ✨ **new** — $5/month: unlimited templates, 5,000 messages/month,
+    and access to **custom sending domains** for DKIM alignment.
+  - **Pro** — now has an enforced **50,000 messages/month** cap (was uncapped). Price
+    and unlimited templates are unchanged.
+  - **Custom sending domains** are now available on **any paid plan** (Starter and
+    Pro), not just Pro. See
+    [Channels → Custom sending domains](/concepts/channels-and-providers#custom-sending-domains).
+
+  ### Built-in email sender caps
+
+  The built-in `@tx.senderkit.email` sender has per-plan monthly limits that protect
+  the shared sending domain's reputation, independent of the plan's overall message
+  quota. The Starter tier is now included:
+
+  | Plan    | Monthly cap | Daily cap |
+  | ------- | ----------- | --------- |
+  | Free    | 500         | 50        |
+  | Starter | 5,000       | 500       |
+  | Pro     | 10,000      | 500       |
+
+  Connecting your own email provider (or a verified custom sending domain) removes the
+  built-in sender cap entirely and routes through your connection instead.
+
+  ### Upgrading
+
+  Existing free workspaces are not automatically migrated — you keep your current
+  limits until you choose to upgrade. Select a plan from **Dashboard → Billing**.
+</Update>
+
 <Update label="June 14, 2026" description="Supabase auth-email integration" tags={["Dashboard", "Integration"]}>
   ## Route Supabase auth emails through SenderKit
 
@@ -136,7 +182,7 @@ This page tracks releases of SenderKit's developer libraries — the
   Custom-domain connections have their own per-connection cap tier and billing
   meter, separate from the built-in shared sender caps.
 
-  See [Channels → Custom sending domains](/concepts/channels-and-providers#custom-sending-domains-pro).
+  See [Channels → Custom sending domains](/concepts/channels-and-providers#custom-sending-domains).
 </Update>
 
 <Update label="June 11, 2026" description="v0.8.0 — API key scopes enforced, SenderKitPermissionError" tags={["SDK", "CLI"]}>

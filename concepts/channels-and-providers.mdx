@@ -55,20 +55,21 @@ connect your own provider later when you're ready to use a custom from-address.
 
 The built-in sender has soft caps per plan to protect the shared domain's reputation:
 
-| Plan | Monthly cap | Daily cap |
-| ---- | ----------- | --------- |
-| Free | 500         | 50        |
-| Pro  | 10,000      | 500       |
+| Plan    | Monthly cap | Daily cap |
+| ------- | ----------- | --------- |
+| Free    | 500         | 50        |
+| Starter | 5,000       | 500       |
+| Pro     | 10,000      | 500       |
 
 Sends that exceed the cap return HTTP `402` with code `managed_send_limit_reached`.
 Once you connect your own provider and set it as the workspace default, it replaces
 the built-in sender and the caps no longer apply.
 
-## Custom sending domains (Pro)
+## Custom sending domains
 
-Pro workspaces can connect their own sending domains and send from any address on a
-verified domain — without the shared `@tx.senderkit.email` address appearing to
-recipients.
+Starter and Pro workspaces can connect their own sending domains and send from any
+address on a verified domain — without the shared `@tx.senderkit.email` address
+appearing to recipients.
 
 Adding a domain creates a dedicated **managed connection** in the Channels page.
 The built-in shared sender remains as the implicit fallback; your domain connection
@@ -123,8 +124,8 @@ Custom-domain connections have their own per-connection cap tier (separate from 
 built-in shared sender caps) and a separate per-connection billing meter.
 
 <Note>
-  Custom sending domains require a **Pro** plan. Free workspaces see an upgrade
-  prompt in the Channels page.
+  Custom sending domains require a **Starter** or **Pro** plan. Free workspaces
+  see an upgrade prompt in the Channels page.
 </Note>
 
 ## How a send picks a provider
