@@ -192,7 +192,7 @@ server-side variable substitution over it. Returns the same `SendResponse` as
     `content: RawEmailContent` — `{ subject, html, preheader?, text? }` plus the
     email envelope fields (`cc`, `bcc`, `replyTo`, `attachments`). A top-level
     `from?` overrides the workspace sender; must match a
-    [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains-pro)
+    [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains)
     when using the managed email sender.
 
     ```ts
