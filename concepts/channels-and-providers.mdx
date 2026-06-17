@@ -53,13 +53,30 @@ provider account or credentials required. Email sends from `@tx.senderkit.email`
 dedicated sending domain), so you can start sending in live mode on day one and
 connect your own provider later when you're ready to use a custom from-address.
 
-The built-in sender has soft caps per plan to protect the shared domain's reputation:
+The built-in sender enforces caps per plan to protect the shared domain's reputation.
+The caps depend on whether you're using the shared `@tx.senderkit.email` sender or a
+[verified custom sending domain](#custom-sending-domains):
+
+**Shared sender (`@tx.senderkit.email`)**
 
 | Plan    | Monthly cap | Daily cap |
 | ------- | ----------- | --------- |
 | Free    | 500         | 50        |
+| Starter | 1,500       | 150       |
+| Pro     | 15,000      | 1,500     |
+
+The shared sender is capped below the plan's message quota because
+heavy volume on `tx.senderkit.email` would affect every workspace's
+deliverability. Verifying a custom sending domain moves you to the higher
+tier below, isolating your reputation to your own domain.
+
+**Verified custom sending domain**
+
+| Plan    | Monthly cap | Daily cap |
+| ------- | ----------- | --------- |
+| Free    | 2,000       | 200       |
 | Starter | 5,000       | 500       |
-| Pro     | 10,000      | 500       |
+| Pro     | 50,000      | 5,000     |
 
 Sends that exceed the cap return HTTP `402` with code `managed_send_limit_reached`.
 Once you connect your own provider and set it as the workspace default, it replaces
@@ -120,8 +137,10 @@ template's configured connection.
 
 ### Caps
 
-Custom-domain connections have their own per-connection cap tier (separate from the
-built-in shared sender caps) and a separate per-connection billing meter.
+Connections on a verified custom domain use the **verified custom sending domain** cap
+tier shown in the table above — higher than the shared `@tx.senderkit.email` caps
+because your domain's reputation is isolated from other workspaces. The caps are still
+enforced as a guard on the shared SES account's overall AWS quota.
 
 <Note>
   Custom sending domains require a **Starter** or **Pro** plan. Free workspaces
