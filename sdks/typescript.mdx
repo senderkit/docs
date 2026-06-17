@@ -347,7 +347,7 @@ senderkit.messages.cancel(id: string): Promise<CancelMessageResponse>
 </ParamField>
 
 <ParamField path="params.status" type="string">
-  Filter by [status](/concepts/messages), e.g. `"delivered"`, `"failed"`.
+  Filter by [status](/concepts/messages), e.g. `"delivered"`, `"failed"`, `"blocked"`.
 </ParamField>
 
 <ParamField path="params.channel" type='"email" | "sms" | "push" | "web-push"'>
@@ -371,6 +371,13 @@ return a `409` (`SenderKitApiError`) — and resolves to
   Message reads are lean — the rendered `content` blob is intentionally omitted
   to keep payloads manageable. The `vars`, `timeline`, and `metadata` attached at
   send time are still returned on every message.
+</Note>
+
+<Note>
+  **`blocked` status and `blockedReason`** — `Message.status` can be `"blocked"` when
+  outbound abuse detection halts a send before it reaches a provider. A `blocked`
+  message also carries an optional `blockedReason: string | null` field explaining the
+  flag. Filter for blocked messages with `messages.list({ status: "blocked" })`.
 </Note>
 
 ```ts
