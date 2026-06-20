@@ -39,6 +39,29 @@ This page tracks releases of SenderKit's developer libraries — the
   - `Message.status === "blocked"` — detection and the status transition are unchanged.
 </Update>
 
+<Update label="June 19, 2026" description="Logs: scroll back through full message history" tags={["Dashboard"]}>
+  ## Load older message history in Logs
+
+  The **Dashboard → Logs** page previously showed only the live tail — a streaming
+  view of your most recent sends with no way to page backward to investigate
+  earlier messages.
+
+  Older history now loads beneath the live tail as one continuous list:
+
+  - **Scroll to load** — as you scroll toward the bottom, the next 50 messages load
+    automatically. A manual **"Load older messages"** button is available as a
+    fallback.
+  - **Live updates while reading back** — when you're scrolled away from the top,
+    incoming live messages are buffered behind a **"↑ N new messages"** pill instead
+    of shifting the viewport. Returning to the top flushes the buffer and resumes
+    the live tail.
+  - **"Beginning of history"** footer appears once all available records have loaded.
+  - The client-side text filter applies to all loaded messages combined.
+
+  The underlying API (`GET /v1/messages?cursor=…`) is unchanged — the dashboard now
+  surfaces its pagination to you directly.
+</Update>
+
 <Update label="June 17, 2026" description="v0.10.0 — blocked message status, outbound abuse detection" tags={["SDK", "CLI"]}>
   ## `blocked` message status
 
@@ -371,7 +394,7 @@ This page tracks releases of SenderKit's developer libraries — the
 
   ### MCP server
 
-  **New `senderkit_context` tool** — returns `{ workspaceId, mode, livemode }`.
+  **New `senderkit_context` tool** — returns `{ workspaceId, mode, livemode }`. 
   Call it before sending to confirm whether the connection is live (real
   delivery) or test (recorded only). Available on both the CLI stdio server and
   the hosted endpoint.
