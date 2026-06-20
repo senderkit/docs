@@ -374,10 +374,11 @@ return a `409` (`SenderKitApiError`) — and resolves to
 </Note>
 
 <Note>
-  **`blocked` status and `blockedReason`** — `Message.status` can be `"blocked"` when
-  outbound abuse detection halts a send before it reaches a provider. A `blocked`
-  message also carries an optional `blockedReason: string | null` field explaining the
-  flag. Filter for blocked messages with `messages.list({ status: "blocked" })`.
+  **`blocked` status** — `Message.status` can be `"blocked"` when outbound abuse
+  detection halts a send before it reaches a provider. The message timeline records a
+  generic notice (`"Blocked by automated content safety checks."`); detailed detection
+  signals are operator-only and not returned in customer API responses. Filter for
+  blocked messages with `messages.list({ status: "blocked" })`.
 </Note>
 
 ```ts
