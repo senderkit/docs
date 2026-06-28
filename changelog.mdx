@@ -14,6 +14,25 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="June 26, 2026" description="Logs: preview the rendered content of any message" tags={["Dashboard"]}>
+  ## Message preview in Logs
+
+  The **Dashboard → Logs** detail drawer now includes a **Preview** action — click
+  the kebab menu on any selected message to see what was actually sent:
+
+  - **Email** — renders the HTML in a sandboxed iframe (no remote resources, tracking
+    pixels, or external fonts load inside the preview).
+  - **SMS / push / web-push** — shows the message body as plain text.
+
+  The preview is fetched on demand when you open it, so the logs list loads as fast
+  as before.
+
+  **Fidelity note:** if the template uses a shared reusable block, the preview renders
+  the block's *current* content rather than a snapshot of what it was at send time.
+  The drawer flags this with an **"approximate"** badge so you know the preview may
+  differ slightly from what the recipient received.
+</Update>
+
 <Update label="June 19, 2026" description="blockedReason is operator-only — not returned via customer API" tags={["Dashboard"]}>
   ## `blockedReason` is operator-only
 
