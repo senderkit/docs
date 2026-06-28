@@ -367,6 +367,28 @@ This page tracks releases of SenderKit's developer libraries — the
   rejected with a clear error.
 </Update>
 
+<Update label="June 8, 2026" description="v0.7.0 — lean template reads, TemplateVersion.content removed" tags={["SDK"]}>
+  ## Lean template and message reads (`TemplateVersion.content` removed)
+
+  **`@senderkit/sdk@0.7.0` / `@senderkit/cli@0.5.1`**
+
+  `templates.get()` no longer includes a `content` field in the response — it
+  was already `undefined` at runtime after the server stopped returning the raw
+  template body. This release makes the TypeScript types reflect reality.
+
+  ### What changed
+
+  - **`TemplateVersion.content` is removed** from the `Template` type. Code that
+    accessed `template.currentVersion.content` will now produce a TypeScript compile
+    error. The rest of `currentVersion` (`versionNumber`, `variables`, `publishedAt`)
+    is unchanged.
+  - `messages.list()` and `messages.get()` also omit rendered content; `vars`,
+    `timeline`, and `metadata` are still returned on every message.
+
+  **No CLI behavior change** — `senderkit templates get` only surfaced version
+  metadata, never raw content.
+</Update>
+
 <Update label="June 7, 2026" description="MCP template generation tools" tags={["MCP"]}>
   ## AI-powered template creation via MCP
 
