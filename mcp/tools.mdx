@@ -80,6 +80,12 @@ template" or "email a notice to user@example.com". Mirrors the
   Email-only. Up to 10 MB total across all attachments. Each `Attachment` is
   `{ filename, contentType, content (base64), inline?, contentId? }`.
 </ParamField>
+<ParamField path="from" type="string">
+  Email-only. From address override (bare address). Must match a [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains) when using the managed email sender.
+</ParamField>
+<ParamField path="fromName" type="string">
+  Email-only. From display name override, rendered as `Name <address>`. Max 128 characters; no control characters or angle brackets. Always applies, regardless of sending domain.
+</ParamField>
 
 ### `senderkit_send_raw`
 
@@ -112,6 +118,9 @@ send a status update to this list." See
 </ParamField>
 <ParamField path="from" type="string">
   Email from-address override. Must match a [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains) when using the managed email sender.
+</ParamField>
+<ParamField path="fromName" type="string">
+  Email-only. From display name override, rendered as `Name <address>`. Max 128 characters; no control characters or angle brackets. Always applies, regardless of sending domain.
 </ParamField>
 <ParamField path="body" type="string">
   Message body. Required for `channel: "sms"`, `channel: "push"`, and
