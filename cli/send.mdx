@@ -88,6 +88,18 @@ senderkit send <template> <to> [options]
   add `"inline": true` and a `"contentId"` value.
 </ParamField>
 
+<ParamField path="--from <string>">
+  From address override (bare address, email only). Defaults to the provider
+  connection's configured address. On managed sending, honored only on the
+  workspace's verified sending domain.
+</ParamField>
+
+<ParamField path="--from-name <string>">
+  From display name override (email only), rendered as `Name <address>`. Max
+  128 characters; no control characters or angle brackets. Always applies,
+  regardless of sending domain.
+</ParamField>
+
 ### Examples
 
 ```bash
@@ -179,8 +191,15 @@ the channel.
 </ParamField>
 
 <ParamField path="--from <string>">
-  From override, e.g. `"Acme <hello@acme.com>"`. Defaults to your workspace's
-  configured sender.
+  From address override (bare address). Defaults to your workspace's
+  configured sender. On managed sending, honored only on the workspace's
+  verified sending domain.
+</ParamField>
+
+<ParamField path="--from-name <string>">
+  From display name override, rendered as `Name <address>`. Max 128
+  characters; no control characters or angle brackets. Always applies,
+  regardless of sending domain.
 </ParamField>
 
 <ParamField path="--reply-to <string>">
@@ -301,6 +320,14 @@ senderkit send-raw user@example.com \
   --html "<p>Please find your invoice attached.</p>" \
   --cc "finance@acme.com" \
   --attachments '[{"filename":"invoice.pdf","contentType":"application/pdf","content":"<base64>"}]'
+
+# Email with From overrides
+senderkit send-raw user@example.com \
+  --channel email \
+  --subject "Hello from Acme" \
+  --html "<p>Hi there.</p>" \
+  --from "hello@acme.com" \
+  --from-name "Acme"
 
 # SMS
 senderkit send-raw +14155551234 \

@@ -146,6 +146,19 @@ senderkit.send(request: SendRequest): Promise<SendResponse>
   10 MB.
 </ParamField>
 
+<ParamField path="from" type="string">
+  Per-message From address override (email only, bare address). Falls back to
+  the connection's From address. On managed sending it's honored only on the
+  workspace's [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains).
+</ParamField>
+
+<ParamField path="fromName" type="string">
+  Per-message From display name override (email only), rendered as
+  `Name <address>`. Falls back to the connection's From name. Max 128
+  characters; no control characters or angle brackets. Unlike `from`, it
+  always applies regardless of sending domain.
+</ParamField>
+
 ### Response
 
 <ResponseField name="id" type="string">
@@ -190,16 +203,18 @@ server-side variable substitution over it. Returns the same `SendResponse` as
 <Tabs>
   <Tab title="email">
     `content: RawEmailContent` — `{ subject, html, preheader?, text? }` plus the
-    email envelope fields (`cc`, `bcc`, `replyTo`, `attachments`). A top-level
-    `from?` overrides the workspace sender; must match a
+    email envelope fields (`cc`, `bcc`, `replyTo`, `attachments`). Two top-level
+    From overrides are also available, identical to `send()`: `from?` (bare
+    address; must match a
     [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains)
-    when using the managed email sender.
+    on managed sending) and `fromName?` (display name, always applies).
 
     ```ts
     await senderkit.sendRaw({
       channel: "email",
       to: "user@example.com",
-      from: "Acme <hello@acme.com>",
+      from: "hello@acme.com",
+      fromName: "Acme",
       content: {
         subject: "Welcome, {{name}}",
         html: "<p>Hello, {{name}}.</p>",
@@ -379,6 +394,14 @@ return a `409` (`SenderKitApiError`) — and resolves to
   generic notice (`"Blocked by automated content safety checks."`); detailed detection
   signals are operator-only and not returned in customer API responses. Filter for
   blocked messages with `messages.list({ status: "blocked" })`.
+</Note>
+
+<Note>
+  **Engagement** — `Message.openedAt` / `Message.clickedAt` record the first
+  provider-reported email open / link click as an ISO 8601 string, or `null` if
+  it hasn't happened yet. Each is set once, on the first occurrence — later
+  opens or clicks don't update it. Subscribe to the `message.opened` /
+  `message.clicked` [webhook events](/webhooks) to be notified as they happen.
 </Note>
 
 ```ts

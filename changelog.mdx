@@ -14,6 +14,53 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="July 8, 2026" description="Message engagement: opens and clicks" tags={["SDK", "CLI", "Webhooks"]}>
+  ## Provider-reported opens and clicks on messages
+
+  SenderKit now surfaces provider-reported email **opens** and **link clicks** on
+  messages. Both are read-only and set once, on the first occurrence — later
+  opens/clicks never update them.
+
+  - `Message` gains **`openedAt`** and **`clickedAt`** — ISO 8601 strings, or
+    `null` until the event happens — returned by `messages.get` and
+    `messages.list`.
+  - `senderkit messages get` prints both fields.
+  - Two new subscribable [webhook](/webhooks) events: **`message.opened`** and
+    **`message.clicked`**. These are engagement signals only — they never change
+    a message's `status` (`delivered` stays the terminal state). The
+    `message.clicked` payload additionally carries the clicked `link`.
+
+  This ships as a minor version bump — `@senderkit/sdk@0.13.0` /
+  `@senderkit/cli@0.8.0` — in the next release. The Python and PHP SDKs receive
+  the equivalent `openedAt`/`clickedAt` fields in their own upcoming releases.
+</Update>
+
+<Update label="July 8, 2026" description="v0.12.0 — per-send From overrides on every email send" tags={["SDK", "CLI", "MCP"]}>
+  ## Per-message From overrides, now identical on templated and raw sends
+
+  **`@senderkit/sdk@0.12.0` / `@senderkit/cli@0.7.0`**
+
+  Email sends can now override both parts of the From header, on **both**
+  `send()` (templated) and `sendRaw()` (raw):
+
+  - **`from`** — From address override (bare address). Previously accepted on
+    `sendRaw()` only; now also accepted on `send()`.
+  - **`fromName`** — new on both — From display name override, rendered as
+    `Name <address>`. Max 128 characters; no control characters or angle
+    brackets.
+
+  Either can be set on its own; both fall back to the provider connection's
+  configured values. On managed sending, the `from` address is honored only on
+  the workspace's verified sending domain, while `fromName` always applies.
+
+  - **CLI:** `senderkit send` and `senderkit send-raw` gain `--from` /
+    `--from-name`.
+  - **MCP:** `senderkit_send` and `senderkit_send_raw` gain matching `from` /
+    `fromName` inputs.
+
+  The Python and PHP SDKs receive the equivalent fields in their own releases.
+</Update>
+
 <Update label="July 6, 2026" description="v0.11.0 — `Message.blockedReason` removed from the SDK type" tags={["SDK", "CLI"]}>
   ## `blockedReason` removed from the SDK type
 

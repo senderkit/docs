@@ -75,6 +75,19 @@ real time. See the [API Reference](/api-reference/introduction), the
   It's indexed, so you can later filter messages down to a single user or order.
 </Tip>
 
+## Engagement (opens & clicks)
+
+For email, SenderKit also records provider-reported **opens** and **link
+clicks** as `openedAt` / `clickedAt` on the message — each set once, on the
+first occurrence. These are engagement signals, not lifecycle states: they
+never change a message's `status`, and `delivered` remains the terminal
+happy-path status regardless of whether the recipient later opens it or clicks
+a link.
+
+Subscribe to the `message.opened` / `message.clicked` [webhook events](/webhooks)
+to be notified as they happen, or read the fields directly via
+`messages.get`/`messages.list`.
+
 ## Retention
 
 Messages are retained for a limited window and then deleted:

@@ -21,6 +21,15 @@ Internal pipeline states (`queued`, `rendered`) are not emitted.
 | `message.delivered` | The provider confirmed delivery to the recipient |
 | `message.failed` | The message bounced, errored, or exhausted retries |
 | `message.opted_out` | The recipient unsubscribed or marked the message as spam |
+| `message.opened` | The provider reported the recipient opened the email (first occurrence only) |
+| `message.clicked` | The provider reported a link click in the email (first occurrence only) |
+
+<Note>
+  `message.opened` and `message.clicked` are engagement signals, not lifecycle
+  states — they never change a message's `status`. `delivered` remains the
+  terminal happy-path status; an open or click can arrive seconds or minutes
+  after it. Both fire only once, on the message's first reported open/click.
+</Note>
 
 ## Setting up an endpoint
 
@@ -44,24 +53,55 @@ consistent envelope:
 
 ```json
 {
-  "event": "message.delivered",
-  "deliveryId": "whd_01HZ…",
-  "timestamp": "2026-06-01T12:34:56.789Z",
+  "id": "evt_01HZ…",
+  "type": "message.delivered",
+  "created": "2026-06-01T12:34:56.789Z",
+  "livemode": true,
   "data": {
-    "id": "msg_01HZ…",
-    "template": "welcome",
-    "channel": "email",
-    "status": "delivered",
-    "livemode": true,
-    "recipient": "user@example.com",
-    "scheduledAt": null,
-    "createdAt": "2026-06-01T12:34:00.000Z"
+    "message": {
+      "id": "msg_01HZ…",
+      "status": "delivered",
+      "channel": "email",
+      "recipient": "user@example.com",
+      "provider": "ses",
+      "metadata": {},
+      "error": null,
+      "openedAt": null,
+      "clickedAt": null,
+      "createdAt": "2026-06-01T12:34:00.000Z"
+    }
   }
 }
 ```
 
-The `data` object is a public projection of the message — it omits rendered HTML,
-template variables, and internal provider message IDs.
+`data.message` is a public projection of the message — it omits rendered HTML,
+template variables, and internal provider message IDs. `openedAt` / `clickedAt`
+are set once, on the message's first reported open/click; a `message.clicked`
+event additionally carries the clicked URL as `data.link`:
+
+```json
+{
+  "id": "evt_01HZ…",
+  "type": "message.clicked",
+  "created": "2026-06-01T12:36:10.000Z",
+  "livemode": true,
+  "data": {
+    "message": {
+      "id": "msg_01HZ…",
+      "status": "delivered",
+      "channel": "email",
+      "recipient": "user@example.com",
+      "provider": "ses",
+      "metadata": {},
+      "error": null,
+      "openedAt": "2026-06-01T12:35:02.000Z",
+      "clickedAt": "2026-06-01T12:36:10.000Z",
+      "createdAt": "2026-06-01T12:34:00.000Z"
+    },
+    "link": "https://acme.com/orders/ord_9"
+  }
+}
+```
 
 ## Verifying signatures
 
@@ -136,12 +176,12 @@ app.post(
       return res.status(400).send("Invalid signature");
     }
 
-    const { event, data } = JSON.parse(req.body.toString());
+    const { type, data } = JSON.parse(req.body.toString());
 
     // Acknowledge immediately, process asynchronously
     res.sendStatus(200);
 
-    if (event === "message.failed") {
+    if (type === "message.failed") {
       // e.g. alert on failed delivery
     }
   }
