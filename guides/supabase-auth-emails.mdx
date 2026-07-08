@@ -116,6 +116,8 @@ display OTP codes.
   triggering a retry storm. Only unexpected transient failures return 5xx.
 - **Unsupported actions are silently accepted.** Any `email_action_type` outside the
   six above returns `200` with no send.
+- **Retries are deduplicated.** If Supabase retries a delivery (or a network blip
+  means it never sees SenderKit's response), the retry won't send the email again.
 - **One endpoint per mode.** The Integrations page creates a live-mode endpoint. To
   test before going live, use a `sk_test_` key connection with draft templates — sends
   are recorded but not dispatched to a provider.
