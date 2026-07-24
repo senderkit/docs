@@ -1,0 +1,127 @@
+---
+title: "Inbound Email"
+description: "Receive email at addresses on your workspace's domain and get it delivered as a webhook."
+icon: 'inbox'
+---
+
+SenderKit can receive email, not just send it. Every workspace gets a shared
+receiving domain — `{slug}.in.senderkit.email` — and you provision addresses on
+it from the dashboard or the API. Mail sent to an address is parsed, delivered
+to your backend as a `message.received` webhook, and optionally forwarded to a
+real inbox.
+
+## How it works
+
+1. Create an inbound address from the dashboard or `POST /v1/inbound/addresses`.
+2. Point whatever should reach you — a support alias, a reply-to on an outbound
+   email, a webhook endpoint you hand to a third party — at that address.
+3. When mail arrives, SenderKit parses it and fires a `message.received`
+   [webhook](/webhooks) to every endpoint subscribed to that event (or to one
+   specific endpoint, if the address is bound to it).
+4. Optionally, the address also forwards a copy of the mail to a real inbox.
+
+## The shared receiving domain
+
+The first time you create an inbound address, SenderKit provisions
+`{slug}.in.senderkit.email` for your workspace automatically — there's no DNS
+to configure, since it's a domain SenderKit already owns and receives mail on.
+Receiving on your own custom domain isn't available yet.
+
+## Creating an address
+
+**Dashboard:** open **Inbound** in the sidebar and click **New address**.
+
+**API:**
+
+```bash
+curl https://api.senderkit.com/v1/inbound/addresses \
+  -H "Authorization: Bearer $SENDERKIT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "localPart": "support",
+    "description": "Customer support intake",
+    "forwardTo": "team@acme.com"
+  }'
+```
+
+- Omit `localPart` to get an unguessable generated one (`rcv-xxxxxxxxxx`) —
+  useful when you're embedding the address somewhere you don't want a
+  guessable alias, like a reply-to header on an outbound email.
+- `forwardTo` is optional and forwards a copy of every received message to a
+  real inbox. It can't point at another inbound address — that's rejected as a
+  mail loop.
+- `webhookEndpointId` optionally binds the address to one specific webhook
+  endpoint. Left unset, `message.received` events fan out to every endpoint
+  subscribed to that event.
+- A few local parts (`postmaster`, `abuse`, `unsubscribe`) are reserved and
+  can't be claimed.
+
+Creating and deleting addresses, and reading received mail, all require an API
+key with the `inbound` [scope](/authentication#scopes).
+
+## Reading received mail
+
+`GET /v1/inbound/messages` lists received-message summaries newest first, with
+`limit` / `before` pagination and an optional `address` filter.
+`GET /v1/inbound/messages/{id}` returns the full message — parsed `text` and
+`html` bodies, `from`/`to`/`cc`, raw `headers`, a `strippedReply` (the
+plain-text reply with quoted history and signature stripped for reply-parsing
+use cases), and SES scanning `verdicts` (spam, virus, SPF, DKIM).
+
+Each message also has a `status`:
+
+| Status | Meaning |
+| --- | --- |
+| `received` | Matched an active address and delivered as a webhook (and forwarded, if configured) |
+| `dropped` | No address on the domain matched the recipient |
+| `quota_exceeded` | Matched an address, but the workspace's monthly message quota was already exhausted |
+
+Only `received` messages trigger the `message.received` webhook and any
+forward.
+
+Combined `text` + `html` body storage is capped at 256 KB; longer messages are
+still delivered in full to your webhook endpoint's payload size limits with
+`truncated: true` set.
+
+### Attachments and the raw message
+
+Attachments aren't stored separately from the original message — fetch one at
+a time from `GET /v1/inbound/messages/{id}/attachments/{index}` (the `index`
+matches `attachments[].index` on the message), or fetch the full original
+`message/rfc822` source from `GET /v1/inbound/messages/{id}/raw`. Both require
+the `inbound` scope and are only available for 30 days after receipt —
+afterward they return `410` with code `raw_expired`.
+
+## Billing
+
+A received live message counts against your plan's monthly message quota,
+the same pool outbound sends draw from — one received email is one message,
+just like one outbound send. Test-mode addresses (`livemode: false`) don't
+consume quota. See [Messages → Retention](/concepts/messages#retention) for
+how the quota itself is enforced.
+
+Inbound *addresses* are a separate, smaller plan-limited resource:
+
+| Plan | Inbound addresses |
+| --- | --- |
+| Free | 1 |
+| Starter | 10 |
+| Pro | 50 |
+
+Creating an address past your plan's cap returns `403` with code
+`plan_limit`.
+
+## Deleting an address
+
+Deleting an address doesn't delete its message history — past received
+messages stay queryable. Mail sent to a deleted address afterward is simply
+dropped, the same as mail to any other unmatched recipient.
+
+<CardGroup cols={2}>
+  <Card title="Webhooks" icon="webhook" href="/webhooks#events">
+    Verify signatures and handle the `message.received` payload.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication#scopes">
+    The `inbound` API key scope.
+  </Card>
+</CardGroup>

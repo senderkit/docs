@@ -34,6 +34,7 @@
               "concepts/channels-and-providers",
               "concepts/sending",
               "concepts/messages",
+              "concepts/inbound",
               "concepts/ai-authoring"
             ]
           },
