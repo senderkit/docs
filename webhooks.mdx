@@ -20,7 +20,8 @@ Internal pipeline states (`queued`, `rendered`) are not emitted.
 | `message.sent` | The message was handed off to the email/SMS/push provider |
 | `message.delivered` | The provider confirmed delivery to the recipient |
 | `message.failed` | The message bounced, errored, or exhausted retries |
-| `message.opted_out` | The recipient unsubscribed or marked the message as spam |
+| `message.opted_out` | The recipient unsubscribed, via a one-click link or a provider event |
+| `message.complained` | The provider reported the message as spam |
 | `message.opened` | The provider reported the recipient opened the email (first occurrence only) |
 | `message.clicked` | The provider reported a link click in the email (first occurrence only) |
 
@@ -29,6 +30,17 @@ Internal pipeline states (`queued`, `rendered`) are not emitted.
   states — they never change a message's `status`. `delivered` remains the
   terminal happy-path status; an open or click can arrive seconds or minutes
   after it. Both fire only once, on the message's first reported open/click.
+</Note>
+
+<Note>
+  `message.opted_out` and `message.complained` are consent/reputation signals,
+  not lifecycle states — like opens and clicks, they don't retroactively change
+  a message's `status`. A message that was already `delivered` (or `failed`)
+  when the recipient unsubscribes or complains keeps that status; only a send
+  skipped **before** dispatch because the recipient had already opted out gets
+  the `opted_out` status itself (see [Messages](/concepts/messages#the-message-lifecycle)).
+  A spam complaint fires both `message.complained` and `message.opted_out`; a
+  plain unsubscribe fires `message.opted_out` alone.
 </Note>
 
 ## Setting up an endpoint
