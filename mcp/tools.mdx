@@ -4,7 +4,7 @@ description: "Every MCP tool the SenderKit server exposes."
 icon: 'screwdriver-wrench'
 ---
 
-The SenderKit MCP server exposes fifteen tools, identical across the hosted
+The SenderKit MCP server exposes eighteen tools, identical across the hosted
 endpoint and the local stdio server. Tool names are prefixed with `senderkit_`
 so they don't collide with other servers in a multi-server setup.
 
@@ -304,14 +304,16 @@ find an address's id. Mirrors `GET /v1/inbound/addresses`.
 
 ### `senderkit_inbound_addresses_create`
 
-Create a new inbound email address that receives mail for the workspace and,
-optionally, forwards it and/or fires a webhook on receipt. Mirrors
+Create a new inbound email address that receives mail for the workspace — on
+the shared receiving domain or a verified [custom domain](/concepts/inbound#custom-domains)
+— and, optionally, forwards it and/or fires a webhook on receipt. Mirrors
 `POST /v1/inbound/addresses`.
 
 <ParamField path="localPart" type="string">
   Local part before the `@`, e.g. `"invoices"` for
   `invoices@{workspace}.in.senderkit.email`. Omit to mint an unguessable
-  random one. Max 64 characters.
+  random one. Pass `"*"` for a catch-all that receives every local part on its
+  domain that no exact address already claims. Max 64 characters.
 </ParamField>
 <ParamField path="description" type="string">
   Optional internal note describing what this address is for. Max 200 characters.
@@ -323,6 +325,15 @@ optionally, forwards it and/or fires a webhook on receipt. Mirrors
 <ParamField path="webhookEndpointId" type="string">
   This workspace's webhook endpoint id to fire a `message.received` event to
   on receipt. Must be an active, live-mode endpoint owned by this workspace.
+</ParamField>
+<ParamField path="domainId" type="string">
+  A verified [custom inbound domain](/concepts/inbound#custom-domains) id
+  (from `senderkit_inbound_domains_list`) to mint the address on. Omit for the
+  workspace's shared receiving domain.
+</ParamField>
+<ParamField path="livemode" type="boolean">
+  Defaults to `true`. A test-mode address still receives real mail, but fans
+  out only to test-mode webhook endpoints and doesn't count against quota.
 </ParamField>
 
 ### `senderkit_inbound_addresses_delete`
@@ -364,6 +375,44 @@ Attachment and raw-source links on the returned message are authenticated
 `/v1/inbound/*` API links, not signed/presigned URLs — fetch them with an
 `Authorization: Bearer` header carrying a key with the `inbound` scope. See
 [Inbound Email](/concepts/inbound) for the full reference.
+
+### `senderkit_inbound_domains_list`
+
+List the workspace's inbound domains — the shared receiving domain and any
+custom domains — with their verification status and, for a pending custom
+domain, the DNS records still required to verify it. No parameters. Mirrors
+`GET /v1/inbound/domains`.
+
+### `senderkit_inbound_domains_create`
+
+Claim a custom domain for receiving mail, e.g. `"inbound.acme.com"`. Mirrors
+`POST /v1/inbound/domains`. Returns the DNS records (an MX, plus a DKIM TXT
+proving ownership — skipped if the domain already has a verified custom
+sending domain, which reuses its identity) — surface these to the user
+exactly as returned. Nothing is received until the records are live and a
+background sweep verifies the domain.
+
+<ParamField path="domain" type="string" required>
+  Domain to claim for receiving, e.g. `"inbound.acme.com"`. Must not already
+  be claimed and must not be a `senderkit.com`/`senderkit.email` suffix.
+</ParamField>
+<ParamField path="acknowledgeExistingMx" type="boolean">
+  Only pass `true` after the user has explicitly confirmed they want to
+  redirect this domain's mail to SenderKit. Omit on the first attempt — if the
+  domain already has live MX records pointing elsewhere, the call fails with a
+  `409` (`existing_mx`) naming the current mail host(s), so you can confirm
+  before retrying with this set.
+</ParamField>
+
+### `senderkit_inbound_domains_delete`
+
+Delete a custom inbound domain by id. Its addresses stop receiving mail
+immediately. The workspace's shared receiving domain can't be deleted.
+Mirrors `DELETE /v1/inbound/domains/{id}`.
+
+<ParamField path="id" type="string" required>
+  Inbound domain id (UUID) to delete.
+</ParamField>
 
 ## Errors
 

@@ -14,6 +14,30 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="July 29, 2026" description="@senderkit/sdk@0.13.0 / @senderkit/cli@0.8.0 — inbound namespace, suppressed status, full custom-domain reference" tags={["SDK", "CLI", "MCP"]}>
+  ## SDK/CLI/MCP release: inbound namespace + suppressed status type
+
+  **`@senderkit/sdk@0.13.0` / `@senderkit/cli@0.8.0`**
+
+  This release brings the TypeScript SDK, CLI, and MCP server in step with
+  three changes already covered by earlier entries on this page:
+
+  - **`client.inbound`** — a new namespace with `addresses` (`list`, `create`,
+    `delete`), `messages` (`list`, `get`, `raw`, `attachment`), and `domains`
+    (`list`, `create`, `delete`), matching the [Inbound Email](/concepts/inbound)
+    API in full — including the custom-domain and catch-all support from the
+    July 26 entry below. The CLI gains eight `senderkit inbound *` commands,
+    and the MCP server eight matching tools; see the
+    [Tools reference](/mcp/tools#inbound) for parameters.
+  - **`suppressed`** is now included in the SDK's exported `Message.status`
+    values (the status itself was introduced in the July 26 entry below).
+  - **`openedAt`** / **`clickedAt`** on `Message` — the fields the July 8
+    entry below described ship in this release.
+
+  The Python and PHP SDKs receive the equivalent inbound/suppressed/engagement
+  support in their own upcoming releases.
+</Update>
+
 <Update label="July 26, 2026" description="Logs: retry a failed message" tags={["Dashboard"]}>
   ## Retry a failed send from the Logs page
 
@@ -67,6 +91,13 @@ This page tracks releases of SenderKit's developer libraries — the
   connections are unaffected. The `Message.status` type in the TypeScript,
   PHP, and Python SDKs will include `"suppressed"` in an upcoming release —
   until then, treat it as a value the API and dashboard can already return.
+
+  <Note>
+    Update: as of `@senderkit/sdk@0.13.0` (see the [July 29, 2026 entry](#july-29-2026)
+    above), `suppressed` is included in the TypeScript SDK's exported
+    `Message.status` values. The Python and PHP SDKs pick it up in their own
+    upcoming releases.
+  </Note>
 </Update>
 
 <Update label="July 26, 2026" description="Inbound email: custom domains and catch-all addresses" tags={["Dashboard"]}>
@@ -91,10 +122,10 @@ This page tracks releases of SenderKit's developer libraries — the
   address.
 
   <Note>
-    Full reference detail for both — DNS records, verification states, and
-    API/MCP parameters — will land on the Inbound Email concept page and in
-    the MCP tools reference once the still-open inbound-email documentation
-    lands.
+    Update: full reference detail for both — DNS records, verification
+    states, and API/MCP parameters — is now live on
+    [Inbound Email → Custom domains](/concepts/inbound#custom-domains) and in
+    the [MCP tools reference](/mcp/tools#inbound).
   </Note>
 </Update>
 
@@ -235,6 +266,11 @@ This page tracks releases of SenderKit's developer libraries — the
   This ships as a minor version bump — `@senderkit/sdk@0.13.0` /
   `@senderkit/cli@0.8.0` — in the next release. The Python and PHP SDKs receive
   the equivalent `openedAt`/`clickedAt` fields in their own upcoming releases.
+
+  <Note>
+    Update: `@senderkit/sdk@0.13.0` / `@senderkit/cli@0.8.0` has shipped — see
+    the [July 29, 2026 entry](#july-29-2026) above.
+  </Note>
 </Update>
 
 <Update label="July 8, 2026" description="v0.12.0 — per-send From overrides on every email send" tags={["SDK", "CLI", "MCP"]}>

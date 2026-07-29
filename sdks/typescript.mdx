@@ -397,6 +397,15 @@ return a `409` (`SenderKitApiError`) — and resolves to
 </Note>
 
 <Note>
+  **`suppressed` status** — `Message.status` can be `"suppressed"` on managed
+  (AWS SES) sending: the provider accepted the send but never attempted
+  delivery, because the recipient address failed validation or was already on
+  the account's suppression list. It's distinct from `"failed"`, which is a
+  bounce reported by the receiving mail server after an actual delivery
+  attempt. Bring-your-own-provider connections never return `"suppressed"`.
+</Note>
+
+<Note>
   **Engagement** — `Message.openedAt` / `Message.clickedAt` record the first
   provider-reported email open / link click as an ISO 8601 string, or `null` if
   it hasn't happened yet. Each is set once, on the first occurrence — later
@@ -421,6 +430,96 @@ do {
 // Cancel a scheduled message
 await senderkit.messages.cancel("msg_…");
 ```
+
+## Inbound
+
+Receive email, not just send it. Requires an API key with the `inbound`
+[scope](/authentication#scopes). See [Inbound Email](/concepts/inbound) for
+the full concept reference.
+
+```ts
+senderkit.inbound.addresses.list(): Promise<InboundAddress[]>
+senderkit.inbound.addresses.create(params?: CreateInboundAddressParams): Promise<InboundAddress>
+senderkit.inbound.addresses.delete(id: string): Promise<DeleteInboundAddressResponse>
+
+senderkit.inbound.messages.list(params?: ListInboundMessagesParams): Promise<InboundMessageSummary[]>
+senderkit.inbound.messages.get(id: string): Promise<InboundMessage>
+senderkit.inbound.messages.raw(id: string): Promise<BinaryResponse>
+senderkit.inbound.messages.attachment(id: string, index: number): Promise<BinaryResponse>
+
+senderkit.inbound.domains.list(): Promise<InboundDomain[]>
+senderkit.inbound.domains.create(params: CreateInboundDomainParams): Promise<InboundDomain>
+senderkit.inbound.domains.delete(id: string): Promise<DeleteInboundDomainResponse>
+```
+
+```ts
+// Provision an address on the shared receiving domain
+const address = await senderkit.inbound.addresses.create({
+  localPart: "support",
+  forwardTo: "team@acme.com",
+});
+
+// Claim a custom domain and publish the DNS records it returns
+const domain = await senderkit.inbound.domains.create({ domain: "inbound.acme.com" });
+for (const record of domain.records) {
+  console.log(record.type, record.name, record.value);
+}
+
+// Mint an address on that domain once it verifies, plus a catch-all
+await senderkit.inbound.addresses.create({ domainId: domain.id, localPart: "invoices" });
+await senderkit.inbound.addresses.create({ domainId: domain.id, localPart: "*" });
+
+// Read what arrived
+const recent = await senderkit.inbound.messages.list({ limit: 20 });
+const full = await senderkit.inbound.messages.get(recent[0].id);
+console.log(full.subject, full.text);
+```
+
+<ParamField path="addresses.create(params).localPart" type="string">
+  1–64 chars of `a-z 0-9 . _ -`, starting and ending alphanumeric. Omit to
+  auto-generate an unguessable `rcv-xxxxxxxxxx` local part. Pass `"*"` for a
+  catch-all that receives every local part on its domain that no exact
+  address already claims — an exact-match address always takes priority.
+</ParamField>
+<ParamField path="addresses.create(params).domainId" type="string">
+  A verified custom domain's id (from `domains.list()`) to mint the address
+  on. Omit for the workspace's shared `{slug}.in.senderkit.email` domain.
+</ParamField>
+<ParamField path="addresses.create(params).livemode" type="boolean" default="true">
+  Test-mode (`false`) addresses still receive real mail, but fan out only to
+  test-mode webhook endpoints and don't count against the message quota.
+</ParamField>
+<ParamField path="addresses.create(params).forwardTo" type="string">
+  Also forward received mail to a real inbox. Can't point at another inbound
+  address (rejected as a mail loop).
+</ParamField>
+<ParamField path="addresses.create(params).webhookEndpointId" type="string">
+  Bind the address to one specific webhook endpoint. Left unset,
+  `message.received` fans out to every endpoint subscribed to it.
+</ParamField>
+
+<ParamField path="domains.create(params).domain" type="string" required>
+  Domain to claim for receiving, e.g. `"inbound.acme.com"`. Must not already
+  be claimed and must not be a `senderkit.com`/`senderkit.email` suffix.
+</ParamField>
+<ParamField path="domains.create(params).acknowledgeExistingMx" type="boolean">
+  Only set `true` after the user has confirmed. Omit on the first attempt —
+  a domain with live MX records pointing elsewhere rejects with a `409`
+  (`SenderKitApiError`, `code: "existing_mx"`) naming the current host(s), so
+  you can confirm before redirecting all of that domain's mail to SenderKit.
+</ParamField>
+
+`domains.create()` returns the DNS `records` to publish — an MX plus a DKIM
+TXT proving ownership, unless the domain already has a verified
+[custom sending domain](/concepts/channels-and-providers#custom-sending-domains)
+on the workspace, which reuses that identity and needs only the MX. Nothing
+is received until the records are live and a background sweep flips the
+domain's `status` from `"pending"` to `"verified"` (or `"failed"` after the
+same verification window as custom sending domains).
+
+`messages.raw()` and `messages.attachment(id, index)` return the original
+`message/rfc822` source and one attachment's bytes as a `BinaryResponse`;
+both are only available for 30 days after receipt.
 
 ## Error handling
 
@@ -473,7 +572,12 @@ The package exports the `SenderKit` class, every error class above, the
 `VERSION` constant, and types including `SenderKitOptions`, `SenderKitContext`,
 `ApiScope`, `SendRequest`, `SendRawRequest`, `SendResponse`, `BatchSendOptions`,
 `BatchSendResult`, `Attachment`, `EmailEnvelope`, `Template`, `Message`,
-`ListMessagesParams`, `ListMessagesResponse`, and `CancelMessageResponse`.
+`ListMessagesParams`, `ListMessagesResponse`, `CancelMessageResponse`,
+`InboundAddress`, `CreateInboundAddressParams`, `DeleteInboundAddressResponse`,
+`InboundMessage`, `InboundMessageSummary`, `InboundMessageStatus`,
+`InboundAttachment`, `ListInboundMessagesParams`, `InboundDomain`,
+`InboundDnsRecord`, `CreateInboundDomainParams`,
+`DeleteInboundDomainResponse`, and `BinaryResponse`.
 
 <CardGroup cols={2}>
   <Card title="Sending" icon="paper-plane" href="/concepts/sending">
@@ -481,6 +585,9 @@ The package exports the `SenderKit` class, every error class above, the
   </Card>
   <Card title="Messages" icon="list-check" href="/concepts/messages">
     The lifecycle behind `messages.list` and `cancel`.
+  </Card>
+  <Card title="Inbound Email" icon="inbox" href="/concepts/inbound">
+    Receive mail on your workspace's domain or your own.
   </Card>
   <Card title="HTTP API" icon="code" href="/guides/http-api">
     Integrate without the SDK, via raw `fetch`.
