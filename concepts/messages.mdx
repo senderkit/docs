@@ -21,14 +21,14 @@ stateDiagram-v2
     queued --> rendered
     queued --> canceled
     queued --> blocked
-    rendered --> sent
-    rendered --> blocked
-    sent --> delivered
-    sent --> failed
-    sent --> opted_out
     queued --> opted_out
     queued --> failed
+    rendered --> sent
+    rendered --> blocked
     rendered --> failed
+    sent --> delivered
+    sent --> failed
+    sent --> suppressed
 ```
 
 | Status | What it means | What triggers it |
@@ -39,7 +39,8 @@ stateDiagram-v2
 | `sent` | A provider accepted the message | Successful provider dispatch |
 | `delivered` | The provider confirmed delivery | Provider webhook |
 | `failed` | Delivery failed | Provider webhook, a config error, or retries exhausted |
-| `opted_out` | Recipient is unsubscribed/suppressed | Provider webhook, one-click unsubscribe link, or send skipped because the recipient previously opted out |
+| `suppressed` | The provider rejected the recipient before delivery was attempted | Managed sending only — AWS SES email validation rejects an invalid or previously-bounced recipient pre-dispatch |
+| `opted_out` | Recipient had already opted out | Send skipped before dispatch because the recipient had a prior unsubscribe or spam complaint on file |
 | `blocked` | Delivery halted by outbound abuse detection | Phishing scan flagged the content with high confidence; the message is never handed to a provider. The message timeline records a generic notice; detection details are operator-only and not exposed via the customer API. |
 | `canceled` | Delivery intentionally stopped before dispatch | `messages.cancel()` or the dashboard cancel action |
 
@@ -48,6 +49,15 @@ stateDiagram-v2
   `queued → rendered → sent`, and the moment a provider accepts it is recorded as a
   `dispatched` **event on the message's timeline** while the status itself becomes
   `sent`. Read `sent` as "handed to the provider."
+</Note>
+
+<Note>
+  `opted_out` reflects **only** a send skipped before dispatch because the
+  recipient had already opted out. If a recipient unsubscribes or complains
+  *after* a message reached a terminal outcome (`delivered` or `failed`), that
+  outcome is unchanged — the unsubscribe/complaint is recorded and reported via
+  [webhook events](/webhooks#events), but it no longer overwrites a delivery
+  result that already happened.
 </Note>
 
 In [test mode](/concepts/environments), SenderKit synthesizes this lifecycle
