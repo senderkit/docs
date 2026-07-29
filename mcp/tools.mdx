@@ -4,7 +4,7 @@ description: "Every MCP tool the SenderKit server exposes."
 icon: 'screwdriver-wrench'
 ---
 
-The SenderKit MCP server exposes ten tools, identical across the hosted
+The SenderKit MCP server exposes fifteen tools, identical across the hosted
 endpoint and the local stdio server. Tool names are prefixed with `senderkit_`
 so they don't collide with other servers in a multi-server setup.
 
@@ -290,6 +290,81 @@ a `409`, since delivery once started isn't reversible. Mirrors
   Public message id, e.g. `"msg_…"`.
 </ParamField>
 
+## Inbound
+
+Requires an API key or connection scoped for [inbound email](/concepts/inbound)
+(the `inbound` [scope](/authentication#scopes)).
+
+### `senderkit_inbound_addresses_list`
+
+List the workspace's programmatic inbound email addresses. No parameters.
+
+Use to check which addresses already exist before creating another one, or to
+find an address's id. Mirrors `GET /v1/inbound/addresses`.
+
+### `senderkit_inbound_addresses_create`
+
+Create a new inbound email address that receives mail for the workspace and,
+optionally, forwards it and/or fires a webhook on receipt. Mirrors
+`POST /v1/inbound/addresses`.
+
+<ParamField path="localPart" type="string">
+  Local part before the `@`, e.g. `"invoices"` for
+  `invoices@{workspace}.in.senderkit.email`. Omit to mint an unguessable
+  random one. Max 64 characters.
+</ParamField>
+<ParamField path="description" type="string">
+  Optional internal note describing what this address is for. Max 200 characters.
+</ParamField>
+<ParamField path="forwardTo" type="string">
+  Email address to forward received mail to. Must be a plausible address and
+  can't be another inbound address (would create a mail loop).
+</ParamField>
+<ParamField path="webhookEndpointId" type="string">
+  This workspace's webhook endpoint id to fire a `message.received` event to
+  on receipt. Must be an active, live-mode endpoint owned by this workspace.
+</ParamField>
+
+### `senderkit_inbound_addresses_delete`
+
+Delete an inbound address by id. It immediately stops receiving new mail;
+already-received messages are unaffected. Mirrors
+`DELETE /v1/inbound/addresses/{id}`.
+
+<ParamField path="id" type="string" required>
+  Inbound address id, e.g. `"inb_…"`.
+</ParamField>
+
+### `senderkit_inbound_messages_list`
+
+List received inbound messages for the workspace, newest first. Mirrors
+`GET /v1/inbound/messages`.
+
+<ParamField path="address" type="string">
+  Inbound address id (e.g. `"inb_…"`) to filter by.
+</ParamField>
+<ParamField path="limit" type="integer">
+  Max messages to return, 1-100 (default 50).
+</ParamField>
+<ParamField path="before" type="string">
+  ISO 8601 cursor — only return messages received strictly before this instant.
+</ParamField>
+
+### `senderkit_inbound_messages_get`
+
+Fetch a single received inbound message by id — envelope, headers, subject,
+body, attachments, and spam/auth verdicts. Mirrors
+`GET /v1/inbound/messages/{id}`.
+
+<ParamField path="id" type="string" required>
+  Inbound message id, e.g. `"rcv_…"`.
+</ParamField>
+
+Attachment and raw-source links on the returned message are authenticated
+`/v1/inbound/*` API links, not signed/presigned URLs — fetch them with an
+`Authorization: Bearer` header carrying a key with the `inbound` scope. See
+[Inbound Email](/concepts/inbound) for the full reference.
+
 ## Errors
 
 Tool failures come back as MCP errors with a single text message. The shape:
@@ -313,6 +388,9 @@ The text matches the [REST API's](/api-reference/introduction) `code` /
   </Card>
   <Card title="Messages" icon="list-check" href="/concepts/messages">
     The lifecycle behind every tool response.
+  </Card>
+  <Card title="Inbound Email" icon="inbox" href="/concepts/inbound">
+    Provision addresses and receive mail as a `message.received` webhook.
   </Card>
   <Card title="API Reference" icon="code" href="/api-reference/introduction">
     The REST surface backing these tools.
