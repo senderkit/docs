@@ -14,6 +14,90 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="July 26, 2026" description="Logs: retry a failed message" tags={["Dashboard"]}>
+  ## Retry a failed send from the Logs page
+
+  Failed messages in the dashboard's **Logs** view now have a **Retry send**
+  action in the row menu. It re-queues the message for another dispatch
+  attempt — the status badge flips to `queued` and the message follows the
+  normal lifecycle from there, including the usual suppression and content
+  checks. Only messages with a `failed` status are retryable.
+</Update>
+
+<Update label="July 26, 2026" description="opted_out no longer overwrites a message's delivery outcome" tags={["Webhooks", "Dashboard"]}>
+  ## `opted_out` now only reflects sends skipped before dispatch
+
+  A recipient unsubscribing or complaining **after** a message was already
+  `delivered` (or `failed`) previously flipped that message's `status` to
+  `opted_out`, discarding its actual delivery outcome. `opted_out` now means
+  exactly one thing: the send was skipped before dispatch because the
+  recipient had already opted out. A delivered message stays `delivered` even
+  if the recipient unsubscribes from it afterward.
+
+  - **New `message.complained` [webhook event](/webhooks#events)**, separate
+    from `message.opted_out`. A spam complaint now fires both events; a plain
+    unsubscribe fires `message.opted_out` alone.
+  - `messages.list({ status: "opted_out" })` and the equivalent CLI/MCP status
+    filters now match only pre-send suppressions, not post-delivery
+    unsubscribes or complaints.
+  - See [Messages → lifecycle](/concepts/messages#the-message-lifecycle) for
+    the updated status reference.
+
+  <Note>
+    Filtering by `status: "opted_out"` was the de facto way to find a
+    recipient's unsubscribe/complaint history; this fix narrows it to
+    pre-send skips only, with no replacement query yet. Subscribe to
+    `message.opted_out` / `message.complained` to track consent events going
+    forward.
+  </Note>
+</Update>
+
+<Update label="July 26, 2026" description="New suppressed message status (managed sending)" tags={["Dashboard"]}>
+  ## `suppressed` message status
+
+  Managed sending (AWS SES) now runs **SES email validation** against every
+  recipient before attempting delivery. When AWS rejects a recipient as
+  invalid, or as already on the account's suppression list, the message lands
+  in a new terminal `suppressed` status instead of `failed` — keeping bounce
+  metrics and your logs accurate about what was actually attempted versus what
+  never left the building. A per-workspace suppression-rate signal is shown on
+  the channel detail page.
+
+  `suppressed` only applies to managed sending; bring-your-own-provider
+  connections are unaffected. The `Message.status` type in the TypeScript,
+  PHP, and Python SDKs will include `"suppressed"` in an upcoming release —
+  until then, treat it as a value the API and dashboard can already return.
+</Update>
+
+<Update label="July 26, 2026" description="Inbound email: custom domains and catch-all addresses" tags={["Dashboard"]}>
+  ## Custom inbound domains and catch-all addresses
+
+  Two additions to inbound email:
+
+  - **Custom inbound domains** — receive mail at addresses on your own domain
+    (e.g. `inbound.acme.com`) instead of only the shared
+    `{slug}.in.senderkit.email`. Claim a domain from the dashboard or
+    `POST /v1/inbound/domains`, publish the DNS records it returns (an MX,
+    plus a DKIM TXT proving ownership — skipped if the domain already has a
+    verified sending domain, which reuses its identity), and a background
+    sweep verifies it. New `senderkit_inbound_domains_list` / `_create` /
+    `_delete` MCP tools mirror the REST surface.
+  - **Catch-all addresses** — create an address with `localPart: "*"` to
+    receive mail sent to any local part on a domain that no exact address
+    already claims. An exact-match address always takes priority over the
+    catch-all.
+
+  Both count against the same plan-gated inbound address cap as any other
+  address.
+
+  <Note>
+    Full reference detail for both — DNS records, verification states, and
+    API/MCP parameters — will land on the Inbound Email concept page and in
+    the MCP tools reference once the still-open inbound-email documentation
+    lands.
+  </Note>
+</Update>
+
 <Update label="July 24, 2026" description="Inbound email: receive mail at addresses on your workspace's domain" tags={["Dashboard", "Webhooks"]}>
   ## Receive email, not just send it
 

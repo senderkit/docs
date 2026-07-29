@@ -31,7 +31,7 @@ sequenceDiagram
     Worker->>Worker: render (status: rendered)
     Worker->>Provider: deliver
     Provider-->>Worker: accepted (status: sent)
-    Provider-->>API: webhook: delivered / failed / opted_out
+    Provider-->>API: webhook: delivered / failed
     API->>API: update final status
 ```
 
