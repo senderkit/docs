@@ -32,13 +32,14 @@ behaves correctly just by swapping the key.
 ## Scopes
 
 API keys carry an optional scope set that limits what a credential can do. You pick
-scopes in the dashboard at creation time; all three are selected by default.
+scopes in the dashboard at creation time; all four are selected by default.
 
 | Scope | Authorizes |
 | --- | --- |
 | `read` | `GET /v1/messages`, `GET /v1/messages/{id}`, `GET /v1/context`, `GET /v1/templates`, `GET /v1/templates/{slug}`, and template render |
 | `send` | `POST /v1/send`, `POST /v1/send-raw`, and draft template operations |
 | `cancel` | `DELETE /v1/messages/{id}` |
+| `inbound` | Managing [inbound addresses](/concepts/inbound) and reading received mail — `GET`/`POST /v1/inbound/addresses`, `DELETE /v1/inbound/addresses/{id}`, `GET /v1/inbound/messages`, `GET /v1/inbound/messages/{id}`, and their attachment/raw sub-resources |
 
 A key created without selecting any explicit scope is **unscoped** and has full
 access — all keys minted before scope enforcement are unscoped by default and

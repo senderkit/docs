@@ -8,7 +8,8 @@ SenderKit sends messages asynchronously. When you call `send()`, you get back a
 message id and `status: queued` immediately — but the outcomes that matter
 (delivery confirmation, bounces, opt-outs) happen seconds or minutes later inside
 the provider. Webhooks let SenderKit push those outcomes to your backend the moment
-they arrive, rather than making you poll.
+they arrive, rather than making you poll. The same channel also delivers mail
+sent to your [inbound addresses](/concepts/inbound).
 
 ## Events
 
@@ -24,6 +25,7 @@ Internal pipeline states (`queued`, `rendered`) are not emitted.
 | `message.complained` | The provider reported the message as spam |
 | `message.opened` | The provider reported the recipient opened the email (first occurrence only) |
 | `message.clicked` | The provider reported a link click in the email (first occurrence only) |
+| `message.received` | Mail arrived at one of your [inbound addresses](/concepts/inbound) |
 
 <Note>
   `message.opened` and `message.clicked` are engagement signals, not lifecycle
@@ -114,6 +116,54 @@ event additionally carries the clicked URL as `data.link`:
   }
 }
 ```
+
+### `message.received` payloads
+
+`message.received` carries a different `data.message` shape — a received
+message, not a send. It's only emitted for mail that matched an active
+[inbound address](/concepts/inbound); unmatched or quota-exceeded mail is
+recorded but never delivered as a webhook.
+
+```json
+{
+  "id": "evt_01HZ…",
+  "type": "message.received",
+  "created": "2026-07-24T12:00:00.000Z",
+  "livemode": true,
+  "data": {
+    "message": {
+      "id": "rcv_01HZ…",
+      "channel": "email",
+      "address": "support@acme.in.senderkit.email",
+      "plusTag": null,
+      "from": { "email": "customer@example.com", "name": "Jamie Customer" },
+      "to": [{ "email": "support@acme.in.senderkit.email", "name": null }],
+      "cc": [],
+      "envelope": {
+        "from": "customer@example.com",
+        "to": ["support@acme.in.senderkit.email"]
+      },
+      "subject": "Question about my order",
+      "messageId": "<abc123@mail.example.com>",
+      "inReplyTo": null,
+      "text": "Hi, I have a question about order #4821…",
+      "html": "<p>Hi, I have a question about order #4821…</p>",
+      "strippedReply": "Hi, I have a question about order #4821…",
+      "truncated": false,
+      "headers": { "date": "Fri, 24 Jul 2026 12:00:00 +0000" },
+      "attachments": [],
+      "verdicts": { "spam": "pass", "virus": "pass", "spf": "pass", "dkim": "pass" },
+      "sizeBytes": 4213,
+      "rawUrl": "https://api.senderkit.com/v1/inbound/messages/rcv_01HZ…/raw",
+      "receivedAt": "2026-07-24T12:00:00.000Z"
+    }
+  }
+}
+```
+
+`attachments[].url` and `rawUrl` are authenticated API links, not signed
+public URLs — fetch them with an `Authorization: Bearer` header carrying an
+API key with the `inbound` [scope](/authentication#scopes).
 
 ## Verifying signatures
 
@@ -218,7 +268,7 @@ recent attempts, HTTP status codes, response times, and whether retries are pend
   <Card title="Messages" icon="list-check" href="/concepts/messages">
     The message lifecycle and the statuses that trigger webhook events.
   </Card>
-  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
-    How sends are dispatched and when async outcomes resolve.
+  <Card title="Inbound Email" icon="inbox" href="/concepts/inbound">
+    Provision addresses and receive mail as a `message.received` webhook.
   </Card>
 </CardGroup>

@@ -98,6 +98,27 @@ This page tracks releases of SenderKit's developer libraries — the
   </Note>
 </Update>
 
+<Update label="July 24, 2026" description="Inbound email: receive mail at addresses on your workspace's domain" tags={["Dashboard", "Webhooks"]}>
+  ## Receive email, not just send it
+
+  Workspaces can now provision **inbound addresses** on a shared receiving
+  domain (`{slug}.in.senderkit.email`) and get mail sent to them parsed and
+  delivered as a new **`message.received`** [webhook event](/webhooks#events) —
+  with an optional forward to a real inbox.
+
+  - **New Inbound dashboard page** — create and remove addresses, optionally
+    binding one to a specific webhook endpoint or a forwarding address.
+  - **New `/v1/inbound/*` API routes** — list/create/delete addresses, list and
+    read received messages (parsed body, headers, SES spam/virus/SPF/DKIM
+    verdicts), and fetch attachments or the original raw MIME source (30-day
+    retention). Requires an API key with the new **`inbound`**
+    [scope](/authentication#scopes).
+  - **Plan-gated address caps** — Free 1, Starter 10, Pro 50. A received live
+    message counts against the same monthly message quota as outbound sends.
+
+  See [Inbound Email](/concepts/inbound) for the full reference.
+</Update>
+
 <Update label="July 22, 2026" description="Templates: per-template email theme (Design tab)" tags={["Dashboard"]}>
   ## Style emails without touching HTML
 
@@ -309,7 +330,7 @@ This page tracks releases of SenderKit's developer libraries — the
   is retained as an optional field but is never populated in customer API responses.
   (Update: as of the [July 6, 2026 entry](#july-6-2026) above, the property has been
   removed from the SDK type entirely.)
-  The earlier June 17 changelog entry described `blockedReason` as containing
+  The earlier June 19 changelog entry described `blockedReason` as containing
   human-readable detail (e.g. `"High-confidence phishing content detected"`) — that
   description was incorrect and has been superseded by this entry.
 
@@ -402,7 +423,7 @@ This page tracks releases of SenderKit's developer libraries — the
   overall message quota — verifying a custom sending domain unlocks the higher tier:
 
   | Plan    | Shared `@tx.senderkit.email` | Verified custom domain     |
-  | ------- | ---------------------------- | -------------------------- |
+  | ------- | ---------------------------- | --------------------------- |
   | Free    | 500/month, 50/day            | —                          |
   | Starter | 1,500/month, 150/day         | 5,000/month, 500/day       |
   | Pro     | 15,000/month, 1,500/day      | 50,000/month, 5,000/day    |
