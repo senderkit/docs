@@ -25,7 +25,54 @@ real inbox.
 The first time you create an inbound address, SenderKit provisions
 `{slug}.in.senderkit.email` for your workspace automatically — there's no DNS
 to configure, since it's a domain SenderKit already owns and receives mail on.
-Receiving on your own custom domain isn't available yet.
+To receive on your own domain instead, see [Custom domains](#custom-domains)
+below.
+
+## Custom domains
+
+Instead of (or alongside) the shared domain, you can claim your own domain to
+receive mail on — e.g. `inbound.acme.com`.
+
+**Dashboard:** open **Inbound**, and use the domain picker in **New address**
+to add one, or manage existing ones from the domains section at the top of the
+page.
+
+**API:**
+
+```bash
+curl https://api.senderkit.com/v1/inbound/domains \
+  -H "Authorization: Bearer $SENDERKIT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "domain": "inbound.acme.com" }'
+```
+
+The response carries the DNS `records` to publish:
+
+- **An MX record** on the domain, pointing at SenderKit's inbound mail host —
+  required for every custom domain.
+- **A DKIM TXT record**, proving ownership — only when this domain doesn't
+  already have a verified [custom sending domain](/concepts/channels-and-providers#custom-sending-domains)
+  on the same workspace. If it does, that identity is reused and the MX is all
+  that's outstanding.
+
+Nothing is received until the records are live and a background sweep flips
+the domain's `status` from `pending` to `verified` — the same polling and
+72-hour expiry window as [custom sending domains](/concepts/channels-and-providers#custom-sending-domains).
+A domain that doesn't verify in time flips to `failed` and can be re-claimed.
+
+**Conflict protection:** claiming a domain that already has live MX records
+pointing somewhere else — a domain actively receiving mail via Google
+Workspace, for example — is rejected with `409` and code `existing_mx`,
+naming the current mail host(s), instead of silently redirecting that
+domain's mail to SenderKit. Confirm you want to proceed, then retry the same
+request with `"acknowledgeExistingMx": true`.
+
+A domain already claimed by another workspace (or already claimed as a
+[sending domain](/concepts/channels-and-providers#custom-sending-domains) by a
+*different* workspace) is rejected as `domain_claimed`. Deleting a custom
+domain stops its addresses from receiving mail immediately; the shared
+domain can't be deleted. `GET /v1/inbound/domains` lists every domain on the
+workspace, including the shared one.
 
 ## Creating an address
 
@@ -47,6 +94,15 @@ curl https://api.senderkit.com/v1/inbound/addresses \
 - Omit `localPart` to get an unguessable generated one (`rcv-xxxxxxxxxx`) —
   useful when you're embedding the address somewhere you don't want a
   guessable alias, like a reply-to header on an outbound email.
+- Pass `localPart: "*"` for a **catch-all** address that receives mail for
+  every local part on its domain that no exact address already claims — an
+  exact-match address always takes priority over the catch-all. A catch-all
+  counts as one address against the plan cap like any other.
+- `domainId` mints the address on a verified [custom domain](#custom-domains)
+  (its `id` from `GET /v1/inbound/domains`) instead of the shared domain.
+- `livemode` defaults to `true`. A test-mode address (`false`) still receives
+  real mail, but only fans out to test-mode webhook endpoints and doesn't
+  count against the message quota.
 - `forwardTo` is optional and forwards a copy of every received message to a
   real inbox. It can't point at another inbound address — that's rejected as a
   mail loop.
@@ -56,8 +112,8 @@ curl https://api.senderkit.com/v1/inbound/addresses \
 - A few local parts (`postmaster`, `abuse`, `unsubscribe`) are reserved and
   can't be claimed.
 
-Creating and deleting addresses, and reading received mail, all require an API
-key with the `inbound` [scope](/authentication#scopes).
+Creating and deleting addresses and domains, and reading received mail, all
+require an API key with the `inbound` [scope](/authentication#scopes).
 
 ## Reading received mail
 
