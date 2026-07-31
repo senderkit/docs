@@ -1,1 +1,603 @@
-PLACEHOLDER
+---
+title: "TypeScript SDK"
+description: "The official @senderkit/sdk client for Node.js and edge runtimes."
+icon: 'js'
+---
+
+`@senderkit/sdk` is the official TypeScript client. It is ESM + CJS,
+zero-dependency, fully typed, and runs on Node.js 18+ and edge runtimes (it uses
+the global `fetch`). It wraps the [REST API](/api-reference/introduction) with
+typed requests, automatic retries with backoff, idempotency, and batch helpers.
+
+## Install
+
+<CodeGroup>
+  ```bash npm
+  npm install @senderkit/sdk
+  ```
+
+  ```bash pnpm
+  pnpm add @senderkit/sdk
+  ```
+
+  ```bash bun
+  bun add @senderkit/sdk
+  ```
+</CodeGroup>
+
+## Quickstart
+
+```ts
+import { SenderKit } from "@senderkit/sdk";
+
+const senderkit = new SenderKit({ apiKey: process.env.SENDERKIT_API_KEY! });
+
+const result = await senderkit.send({
+  template: "welcome",
+  to: "user@example.com",
+  vars: { name: "Ada" },
+});
+
+console.log(result.id); // "msg_…"
+```
+
+## Client construction
+
+```ts
+new SenderKit(options: SenderKitOptions)
+```
+
+<ParamField path="apiKey" type="string" required>
+  Your API key. Must start with `sk_live_` (live mode) or `sk_test_` (test
+  mode); the constructor throws a `TypeError` otherwise. The SDK does **not**
+  read `process.env` for you — pass it explicitly. See
+  [Authentication](/authentication).
+</ParamField>
+
+<ParamField path="baseUrl" type="string" default="https://api.senderkit.com">
+  Override the API base URL. Useful for pointing at a proxy or a self-hosted
+  gateway.
+</ParamField>
+
+<ParamField path="timeout" type="number" default="30000">
+  Per-request timeout in milliseconds. A timed-out request rejects with
+  `SenderKitTimeoutError` (after retries are exhausted).
+</ParamField>
+
+<ParamField path="maxRetries" type="number" default="2">
+  Max retry attempts for transient failures — network errors, timeouts, `429`,
+  and `5xx` (except `501`). Retries use exponential backoff with jitter and
+  honor a `Retry-After` response header.
+</ParamField>
+
+<ParamField path="fetch" type="typeof fetch">
+  Inject a custom `fetch` implementation — handy for tests or edge runtimes
+  that don't expose a global `fetch`. Defaults to `globalThis.fetch`.
+</ParamField>
+
+<ParamField path="mode" type='"live" | "test"'>
+  Read-only property (not a constructor option). Derived from the API key
+  prefix: `sk_test_…` → `"test"`, anything else → `"live"`. Useful for
+  conditional logging or safety checks: `if (senderkit.mode === "test") …`.
+</ParamField>
+
+## `send()`
+
+Send a [templated message](/concepts/templates), interpolating
+[variables](/concepts/variables) at send time.
+
+```ts
+senderkit.send(request: SendRequest): Promise<SendResponse>
+```
+
+<ParamField path="template" type="string" required>
+  Template slug, e.g. `"welcome"`.
+</ParamField>
+
+<ParamField path="to" type="string" required>
+  Recipient address — email address, E.164 phone number, push device token, or
+  JSON-encoded web-push `PushSubscription`, depending on the resolved channel.
+  A non-E.164 SMS recipient is rejected.
+</ParamField>
+
+<ParamField path="vars" type="Record<string, unknown>">
+  Template variables. Defaults to `{}`.
+</ParamField>
+
+<ParamField path="channel" type='"email" | "sms" | "push" | "web-push"'>
+  Force a channel. Defaults to the template's primary channel.
+</ParamField>
+
+<ParamField path="version" type="number">
+  Pin a specific template [version](/concepts/versioning). Omit to use the
+  current published version for the environment.
+</ParamField>
+
+<ParamField path="metadata" type="Record<string, string | number | boolean>">
+  Free-form metadata attached to the message. Indexed server-side, so you can
+  later filter with `messages.list({ metadata })`.
+</ParamField>
+
+<ParamField path="scheduledAt" type="string | Date">
+  Defer delivery to a future time — an ISO 8601 string or a `Date`. Must be in
+  the future and within 30 days. The response comes back with
+  `status: "scheduled"`. See [Sending](/concepts/sending).
+</ParamField>
+
+<ParamField path="idempotencyKey" type="string">
+  Idempotency key. **If omitted, the SDK auto-generates one** so a retried
+  request never duplicates a send. Reusing a key returns the original message.
+</ParamField>
+
+<ParamField path="cc" type="string[]">
+  Cc recipients. Email only. Max 50 addresses.
+</ParamField>
+
+<ParamField path="bcc" type="string[]">
+  Bcc recipients. Email only. Max 50 addresses.
+</ParamField>
+
+<ParamField path="replyTo" type="string">
+  Reply-To address. Email only.
+</ParamField>
+
+<ParamField path="attachments" type="Attachment[]">
+  File or inline attachments (email only). Each `Attachment` is
+  `{ filename, contentType, content, inline?, contentId? }` where `content` is
+  **base64-encoded bytes**. Provider caps the total across all attachments at
+  10 MB.
+</ParamField>
+
+<ParamField path="from" type="string">
+  Per-message From address override (email only, bare address). Falls back to
+  the connection's From address. On managed sending it's honored only on the
+  workspace's [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains).
+</ParamField>
+
+<ParamField path="fromName" type="string">
+  Per-message From display name override (email only), rendered as
+  `Name <address>`. Falls back to the connection's From name. Max 128
+  characters; no control characters or angle brackets. Unlike `from`, it
+  always applies regardless of sending domain.
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string">
+  Message id, e.g. `"msg_…"`.
+</ResponseField>
+
+<ResponseField name="status" type='"queued" | "scheduled"'>
+  `"scheduled"` when `scheduledAt` is in the future, otherwise `"queued"`.
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean">
+  Whether the request ran against live mode. Derived from the API key prefix.
+</ResponseField>
+
+```ts
+const res = await senderkit.send({
+  template: "receipt",
+  to: "user@example.com",
+  vars: { amount: "$42.00" },
+  cc: ["accounting@acme.com"],
+  metadata: { orderId: "ord_9" },
+  idempotencyKey: "receipt:ord_9",
+});
+// { id: "msg_…", status: "queued", livemode: true }
+```
+
+## `sendRaw()`
+
+Send inline content without a registered template. The `content` shape is
+selected by `channel`.
+
+```ts
+senderkit.sendRaw(request: SendRawRequest): Promise<SendResponse>
+```
+
+`SendRawRequest` is a discriminated union on `channel`. Shared fields: `to`
+(required), `vars`, `metadata`, `interpolate`, `scheduledAt`, `idempotencyKey`.
+By default content is delivered verbatim — set `interpolate: true` to run
+server-side variable substitution over it. Returns the same `SendResponse` as
+`send()`.
+
+<Tabs>
+  <Tab title="email">
+    `content: RawEmailContent` — `{ subject, html, preheader?, text? }` plus the
+    email envelope fields (`cc`, `bcc`, `replyTo`, `attachments`). Two top-level
+    From overrides are also available, identical to `send()`: `from?` (bare
+    address; must match a
+    [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains)
+    on managed sending) and `fromName?` (display name, always applies).
+
+    ```ts
+    await senderkit.sendRaw({
+      channel: "email",
+      to: "user@example.com",
+      from: "hello@acme.com",
+      fromName: "Acme",
+      content: {
+        subject: "Welcome, {{name}}",
+        html: "<p>Hello, {{name}}.</p>",
+      },
+      vars: { name: "Ada" },
+      interpolate: true,
+    });
+    ```
+  </Tab>
+  <Tab title="sms">
+    `content: RawSmsContent` — `{ body }`. `to` must be a valid E.164 phone
+    number (e.g. `+14155551234`); non-conforming values are rejected.
+
+    ```ts
+    await senderkit.sendRaw({
+      channel: "sms",
+      to: "+14155551234",
+      content: { body: "Your code is 042195" },
+    });
+    ```
+  </Tab>
+  <Tab title="push">
+    `content: RawPushContent` — `{ title, body, data?, badge?, sound? }`.
+
+    ```ts
+    await senderkit.sendRaw({
+      channel: "push",
+      to: "device_token_…",
+      content: { title: "Order shipped", body: "Tracking attached", badge: 1 },
+    });
+    ```
+  </Tab>
+  <Tab title="web-push">
+    `content: RawWebPushContent` — `{ title, body, icon?, clickUrl?, badge?, data? }`.
+    `to` is the JSON-encoded browser `PushSubscription` from the Web Push API.
+
+    ```ts
+    await senderkit.sendRaw({
+      channel: "web-push",
+      to: JSON.stringify(subscription), // PushSubscription from browser
+      content: {
+        title: "New order shipped",
+        body: "Your package is on its way.",
+        clickUrl: "https://acme.com/orders/ord_123",
+      },
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## `sendBatch()`
+
+Send many messages with bounded concurrency. Never throws for individual
+failures — each result reports success or the error for that item, so one bad
+recipient doesn't sink the batch.
+
+```ts
+senderkit.sendBatch(
+  requests: Array<SendRequest | SendRawRequest>,
+  options?: BatchSendOptions,
+): Promise<BatchSendResult[]>
+```
+
+<ParamField path="options.concurrency" type="number" default="5">
+  Max parallel in-flight requests.
+</ParamField>
+
+<ParamField path="options.idempotencyKey" type="string">
+  Base key. Each item is sent with `${key}-${index}` (unless the item carries
+  its own `idempotencyKey`).
+</ParamField>
+
+Each `BatchSendResult` is one of:
+
+```ts
+| { ok: true;  index: number; id: string; status: "queued" | "scheduled"; livemode: boolean }
+| { ok: false; index: number; error: SenderKitError }
+```
+
+```ts
+const results = await senderkit.sendBatch(
+  recipients.map((to) => ({ template: "digest", to })),
+  { concurrency: 10, idempotencyKey: "digest:2026-05-31" },
+);
+
+const failed = results.filter((r) => !r.ok);
+if (failed.length) console.error(`${failed.length} sends failed`);
+```
+
+## `context()`
+
+Fetch the workspace the API key belongs to and the active send mode.
+
+```ts
+senderkit.context(): Promise<SenderKitContext>
+```
+
+Returns `{ workspace: { id, slug, name }, mode: "live" | "test" }`. Useful to
+confirm which workspace subsequent calls will affect — mirrors
+[`GET /v1/context`](/api-reference/introduction) and the
+[`senderkit_context`](/mcp/tools) MCP tool.
+
+```ts
+const ctx = await senderkit.context();
+console.log(ctx.workspace.name); // "Acme Inc"
+console.log(ctx.mode);           // "live"
+```
+
+## Templates
+
+```ts
+senderkit.templates.list(): Promise<Template[]>
+senderkit.templates.get(slug: string): Promise<Template>
+```
+
+`list()` returns templates without their version body. `get(slug)` includes
+`currentVersion` (`{ versionNumber, variables, publishedAt }`). A `Template`
+has `slug`, `channel`, `description`, `status`, and `updatedAt`.
+
+<Note>
+  The `content` (raw HTML/blocks) field is intentionally omitted from both
+  `list()` and `get()` responses to keep payloads lean. Use the dashboard or
+  the `/v1/templates/{slug}/render` endpoint when you need the rendered output.
+</Note>
+
+```ts
+const templates = await senderkit.templates.list();
+const welcome = await senderkit.templates.get("welcome");
+console.log(welcome.currentVersion?.versionNumber);
+```
+
+## Messages
+
+```ts
+senderkit.messages.list(params?: ListMessagesParams): Promise<ListMessagesResponse>
+senderkit.messages.get(id: string): Promise<Message>
+senderkit.messages.cancel(id: string): Promise<CancelMessageResponse>
+```
+
+<ParamField path="params.limit" type="number">
+  Max messages to return, 1-200 (default 50).
+</ParamField>
+
+<ParamField path="params.cursor" type="string">
+  Pagination cursor — pass the previous response's `nextCursor`.
+</ParamField>
+
+<ParamField path="params.status" type="string">
+  Filter by [status](/concepts/messages), e.g. `"delivered"`, `"failed"`, `"blocked"`.
+</ParamField>
+
+<ParamField path="params.channel" type='"email" | "sms" | "push" | "web-push"'>
+  Filter by channel.
+</ParamField>
+
+<ParamField path="params.template" type="string">
+  Filter by template slug.
+</ParamField>
+
+<ParamField path="params.metadata" type="Record<string, string | number | boolean>">
+  Filter by metadata attached at send time. Every key/value pair must match.
+</ParamField>
+
+`list()` resolves to `{ data: Message[]; nextCursor: string | null }`.
+`cancel(id)` only works on `scheduled` or `queued` messages — later states
+return a `409` (`SenderKitApiError`) — and resolves to
+`{ id, status: "canceled" }`.
+
+<Note>
+  Message reads are lean — the rendered `content` blob is intentionally omitted
+  to keep payloads manageable. The `vars`, `timeline`, and `metadata` attached at
+  send time are still returned on every message.
+</Note>
+
+<Note>
+  **`blocked` status** — `Message.status` can be `"blocked"` when outbound abuse
+  detection halts a send before it reaches a provider. The message timeline records a
+  generic notice (`"Blocked by automated content safety checks."`); detailed detection
+  signals are operator-only and not returned in customer API responses. Filter for
+  blocked messages with `messages.list({ status: "blocked" })`.
+</Note>
+
+<Note>
+  **`suppressed` status** — `Message.status` can be `"suppressed"` on managed
+  (AWS SES) sending: the provider accepted the send but never attempted
+  delivery, because the recipient address failed validation or was already on
+  the account's suppression list. It's distinct from `"failed"`, which is a
+  bounce reported by the receiving mail server after an actual delivery
+  attempt. Bring-your-own-provider connections never return `"suppressed"`.
+  Subscribe to the `message.suppressed` [webhook event](/webhooks) to be
+  notified as it happens.
+</Note>
+
+<Note>
+  **Engagement** — `Message.openedAt` / `Message.clickedAt` record the first
+  provider-reported email open / link click as an ISO 8601 string, or `null` if
+  it hasn't happened yet. Each is set once, on the first occurrence — later
+  opens or clicks don't update it. Subscribe to the `message.opened` /
+  `message.clicked` [webhook events](/webhooks) to be notified as they happen.
+</Note>
+
+```ts
+// Page through every failed email
+let cursor: string | undefined;
+do {
+  const page = await senderkit.messages.list({
+    status: "failed",
+    channel: "email",
+    cursor,
+    limit: 100,
+  });
+  for (const m of page.data) console.log(m.publicId, m.recipient);
+  cursor = page.nextCursor ?? undefined;
+} while (cursor);
+
+// Cancel a scheduled message
+await senderkit.messages.cancel("msg_…");
+```
+
+## Inbound
+
+Receive email, not just send it. Requires an API key with the `inbound`
+[scope](/authentication#scopes). See [Inbound Email](/concepts/inbound) for
+the full concept reference.
+
+```ts
+senderkit.inbound.addresses.list(): Promise<InboundAddress[]>
+senderkit.inbound.addresses.create(params?: CreateInboundAddressParams): Promise<InboundAddress>
+senderkit.inbound.addresses.delete(id: string): Promise<DeleteInboundAddressResponse>
+
+senderkit.inbound.messages.list(params?: ListInboundMessagesParams): Promise<InboundMessageSummary[]>
+senderkit.inbound.messages.get(id: string): Promise<InboundMessage>
+senderkit.inbound.messages.raw(id: string): Promise<BinaryResponse>
+senderkit.inbound.messages.attachment(id: string, index: number): Promise<BinaryResponse>
+
+senderkit.inbound.domains.list(): Promise<InboundDomain[]>
+senderkit.inbound.domains.create(params: CreateInboundDomainParams): Promise<InboundDomain>
+senderkit.inbound.domains.delete(id: string): Promise<DeleteInboundDomainResponse>
+```
+
+```ts
+// Provision an address on the shared receiving domain
+const address = await senderkit.inbound.addresses.create({
+  localPart: "support",
+  forwardTo: "team@acme.com",
+});
+
+// Claim a custom domain and publish the DNS records it returns
+const domain = await senderkit.inbound.domains.create({ domain: "inbound.acme.com" });
+for (const record of domain.records) {
+  console.log(record.type, record.name, record.value);
+}
+
+// Mint an address on that domain once it verifies, plus a catch-all
+await senderkit.inbound.addresses.create({ domainId: domain.id, localPart: "invoices" });
+await senderkit.inbound.addresses.create({ domainId: domain.id, localPart: "*" });
+
+// Read what arrived
+const recent = await senderkit.inbound.messages.list({ limit: 20 });
+const full = await senderkit.inbound.messages.get(recent[0].id);
+console.log(full.subject, full.text);
+```
+
+<ParamField path="addresses.create(params).localPart" type="string">
+  1–64 chars of `a-z 0-9 . _ -`, starting and ending alphanumeric. Omit to
+  auto-generate an unguessable `rcv-xxxxxxxxxx` local part. Pass `"*"` for a
+  catch-all that receives every local part on its domain that no exact
+  address already claims — an exact-match address always takes priority.
+</ParamField>
+<ParamField path="addresses.create(params).domainId" type="string">
+  A verified custom domain's id (from `domains.list()`) to mint the address
+  on. Omit for the workspace's shared `{slug}.in.senderkit.email` domain.
+</ParamField>
+<ParamField path="addresses.create(params).livemode" type="boolean" default="true">
+  Test-mode (`false`) addresses still receive real mail, but fan out only to
+  test-mode webhook endpoints and don't count against the message quota.
+</ParamField>
+<ParamField path="addresses.create(params).forwardTo" type="string">
+  Also forward received mail to a real inbox. Can't point at another inbound
+  address (rejected as a mail loop).
+</ParamField>
+<ParamField path="addresses.create(params).webhookEndpointId" type="string">
+  Bind the address to one specific webhook endpoint. Left unset,
+  `message.received` fans out to every endpoint subscribed to it.
+</ParamField>
+
+<ParamField path="domains.create(params).domain" type="string" required>
+  Domain to claim for receiving, e.g. `"inbound.acme.com"`. Must not already
+  be claimed and must not be a `senderkit.com`/`senderkit.email` suffix.
+</ParamField>
+<ParamField path="domains.create(params).acknowledgeExistingMx" type="boolean">
+  Only set `true` after the user has confirmed. Omit on the first attempt —
+  a domain with live MX records pointing elsewhere rejects with a `409`
+  (`SenderKitApiError`, `code: "existing_mx"`) naming the current host(s), so
+  you can confirm before redirecting all of that domain's mail to SenderKit.
+</ParamField>
+
+`domains.create()` returns the DNS `records` to publish — an MX plus a DKIM
+TXT proving ownership, unless the domain already has a verified
+[custom sending domain](/concepts/channels-and-providers#custom-sending-domains)
+on the workspace, which reuses that identity and needs only the MX. Nothing
+is received until the records are live and a background sweep flips the
+domain's `status` from `"pending"` to `"verified"` (or `"failed"` after the
+same verification window as custom sending domains).
+
+`messages.raw()` and `messages.attachment(id, index)` return the original
+`message/rfc822` source and one attachment's bytes as a `BinaryResponse`;
+both are only available for 30 days after receipt.
+
+## Error handling
+
+Every error extends `SenderKitError`. API errors carry `status`, `code`,
+`issues`, and `requestId` (echoed from the `x-request-id` response header — quote
+it in support requests).
+
+| Class | Thrown when | Extra properties |
+| --- | --- | --- |
+| `SenderKitAuthenticationError` | `401` — bad, missing, or revoked key | `status`, `code`, `issues`, `requestId` |
+| `SenderKitPermissionError` | `403` — key is valid but lacks the required scope; extends `SenderKitApiError` (see [Scopes](/authentication#scopes)) | `status`, `code`, `issues`, `requestId` |
+| `SenderKitValidationError` | `400` / `422` — invalid request | `status`, `code`, `issues`, `requestId` |
+| `SenderKitRateLimitError` | `429` — rate limited | `retryAfter` (**milliseconds**, when the server sent `Retry-After`) + the above |
+| `SenderKitApiError` | any other non-2xx (e.g. `409`, `5xx`) | `status`, `code`, `issues`, `requestId` |
+| `SenderKitTimeoutError` | request exceeded `timeout` | — |
+| `SenderKitNetworkError` | network-level failure | `cause` |
+
+The SDK already retries transient failures (`429`, `5xx`, network, timeout) up
+to `maxRetries` with backoff, so a thrown error means retries were exhausted.
+
+```ts
+import {
+  SenderKit,
+  SenderKitPermissionError,
+  SenderKitRateLimitError,
+  SenderKitValidationError,
+  SenderKitError,
+} from "@senderkit/sdk";
+
+try {
+  await senderkit.send({ template: "welcome", to: "user@example.com" });
+} catch (err) {
+  if (err instanceof SenderKitValidationError) {
+    console.error("Bad request:", err.issues);
+  } else if (err instanceof SenderKitPermissionError) {
+    console.error("Permission denied — key lacks required scope:", err.code);
+  } else if (err instanceof SenderKitRateLimitError) {
+    console.error(`Rate limited; retry after ${err.retryAfter}ms`);
+  } else if (err instanceof SenderKitError) {
+    console.error("Send failed:", err.message);
+  } else {
+    throw err;
+  }
+}
+```
+
+## Exports
+
+The package exports the `SenderKit` class, every error class above, the
+`VERSION` constant, and types including `SenderKitOptions`, `SenderKitContext`,
+`ApiScope`, `SendRequest`, `SendRawRequest`, `SendResponse`, `BatchSendOptions`,
+`BatchSendResult`, `Attachment`, `EmailEnvelope`, `Template`, `Message`,
+`ListMessagesParams`, `ListMessagesResponse`, `CancelMessageResponse`,
+`InboundAddress`, `CreateInboundAddressParams`, `DeleteInboundAddressResponse`,
+`InboundMessage`, `InboundMessageSummary`, `InboundMessageStatus`,
+`InboundAttachment`, `ListInboundMessagesParams`, `InboundDomain`,
+`InboundDnsRecord`, `CreateInboundDomainParams`,
+`DeleteInboundDomainResponse`, and `BinaryResponse`.
+
+<CardGroup cols={2}>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    What a send accepts now and delivers later.
+  </Card>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    The lifecycle behind `messages.list` and `cancel`.
+  </Card>
+  <Card title="Inbound Email" icon="inbox" href="/concepts/inbound">
+    Receive mail on your workspace's domain or your own.
+  </Card>
+  <Card title="HTTP API" icon="code" href="/guides/http-api">
+    Integrate without the SDK, via raw `fetch`.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    The underlying REST endpoints.
+  </Card>
+</CardGroup>
