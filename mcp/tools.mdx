@@ -1,1 +1,459 @@
-PLACEHOLDER
+---
+title: "Tools"
+description: "Every MCP tool the SenderKit server exposes."
+icon: 'screwdriver-wrench'
+---
+
+The SenderKit MCP server exposes eighteen tools, identical across the hosted
+endpoint and the local stdio server. Tool names are prefixed with `senderkit_`
+so they don't collide with other servers in a multi-server setup.
+
+No MCP prompts or resources are exposed — tools only.
+
+## Workspace
+
+### `senderkit_context`
+
+Report the connected workspace and the active send mode. No parameters.
+
+Call this before sending when you need to confirm which workspace subsequent
+calls will affect, or whether messages will really be delivered (`live`) or
+only recorded in test mode (`test`). The mode is fixed per connection —
+derived from the API key prefix for API-key connections (`sk_live_` /
+`sk_test_`), or from the workspace/mode you chose on the consent screen for
+OAuth connections.
+
+Returns `{ workspace: { id, slug, name }, mode: "live" | "test" }`.
+
+## Sending
+
+### `senderkit_send`
+
+Send a templated message to a recipient. Dispatches a real message; live vs
+test mode is fixed per connection (call [`senderkit_context`](#senderkit_context)
+to confirm before sending). The result includes a `mode` field alongside the
+message ID and status.
+
+The most common tool — an agent uses this when you ask it to "send the welcome
+template" or "email a notice to user@example.com". Mirrors the
+[`POST /v1/send`](/api-reference/introduction) endpoint.
+
+<ParamField path="template" type="string" required>
+  Template slug, e.g. `"welcome"`. Slugs are always lowercase. See [Templates](/concepts/templates).
+</ParamField>
+<ParamField path="to" type="string" required>
+  Recipient address — email address, E.164 phone number, push device token, or
+  JSON-encoded web-push `PushSubscription`.
+</ParamField>
+<ParamField path="vars" type="object">
+  Template [variables](/concepts/variables) as a JSON object.
+</ParamField>
+<ParamField path="channel" type='"email" | "sms" | "push" | "web-push"'>
+  Force a channel. Defaults to the template's primary channel.
+</ParamField>
+<ParamField path="version" type="integer">
+  Pin a specific template [version](/concepts/versioning). Omit to use the
+  currently published version.
+</ParamField>
+<ParamField path="metadata" type="object">
+  Free-form metadata as a JSON object of scalar values. Indexed for filtering
+  in `senderkit_messages_list`.
+</ParamField>
+<ParamField path="scheduledAt" type="string">
+  ISO 8601 timestamp for [scheduled delivery](/concepts/sending#scheduling-sends).
+  Must be in the future, within 30 days.
+</ParamField>
+<ParamField path="idempotencyKey" type="string">
+  [Idempotency key](/concepts/sending#idempotency). Repeat values return the
+  original send instead of duplicating.
+</ParamField>
+<ParamField path="cc" type="string[]">
+  Email-only. Cc recipients as a JSON array of addresses (max 50).
+</ParamField>
+<ParamField path="bcc" type="string[]">
+  Email-only. Bcc recipients as a JSON array of addresses (max 50).
+</ParamField>
+<ParamField path="replyTo" type="string">
+  Email-only. Reply-To address.
+</ParamField>
+<ParamField path="attachments" type="Attachment[]">
+  Email-only. Up to 10 MB total across all attachments. Each `Attachment` is
+  `{ filename, contentType, content (base64), inline?, contentId? }`.
+</ParamField>
+<ParamField path="from" type="string">
+  Email-only. From address override (bare address). Must match a [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains) when using the managed email sender.
+</ParamField>
+<ParamField path="fromName" type="string">
+  Email-only. From display name override, rendered as `Name <address>`. Max 128 characters; no control characters or angle brackets. Always applies, regardless of sending domain.
+</ParamField>
+
+### `senderkit_send_raw`
+
+Send inline content without a registered template. Dispatches a real message;
+live vs test mode is fixed per connection (call [`senderkit_context`](#senderkit_context)
+to confirm). The result includes a `mode` field.
+
+Useful for one-off sends an agent constructs in the moment — e.g. "draft and
+send a status update to this list." See
+[Template sends and raw sends](/concepts/sending#template-sends-and-raw-sends).
+
+<ParamField path="channel" type='"email" | "sms" | "push" | "web-push"' required>
+  The channel to send on.
+</ParamField>
+<ParamField path="to" type="string" required>
+  Recipient address — email address, E.164 phone number for `channel: "sms"`,
+  push device token for `channel: "push"`, or the JSON-encoded browser
+  `PushSubscription` (endpoint + `p256dh`/`auth` keys) for `channel: "web-push"`.
+  Non-E.164 SMS recipients are rejected.
+</ParamField>
+<ParamField path="subject" type="string">
+  Email subject. Required for `channel: "email"`.
+</ParamField>
+<ParamField path="preheader" type="string">
+  Email preheader (the snippet preview some clients show).
+</ParamField>
+<ParamField path="html" type="string">
+  Email HTML body. Required for `channel: "email"`.
+</ParamField>
+<ParamField path="text" type="string">
+  Email plain-text body.
+</ParamField>
+<ParamField path="from" type="string">
+  Email from-address override. Must match a [verified custom sending domain](/concepts/channels-and-providers#custom-sending-domains) when using the managed email sender.
+</ParamField>
+<ParamField path="fromName" type="string">
+  Email-only. From display name override, rendered as `Name <address>`. Max 128 characters; no control characters or angle brackets. Always applies, regardless of sending domain.
+</ParamField>
+<ParamField path="body" type="string">
+  Message body. Required for `channel: "sms"`, `channel: "push"`, and
+  `channel: "web-push"`.
+</ParamField>
+<ParamField path="title" type="string">
+  Notification title. Required for `channel: "push"` and `channel: "web-push"`.
+</ParamField>
+<ParamField path="badge" type="integer">
+  Badge count. Push and web-push.
+</ParamField>
+<ParamField path="sound" type="string">
+  Notification sound name. Push only.
+</ParamField>
+<ParamField path="icon" type="string">
+  Icon URL shown in the notification. Web-push only.
+</ParamField>
+<ParamField path="clickUrl" type="string">
+  URL opened when the user clicks the notification. Web-push only.
+</ParamField>
+<ParamField path="pushData" type="object">
+  Data payload as a JSON object of string values. Push and web-push.
+</ParamField>
+<ParamField path="vars" type="object">
+  Variables for interpolation. Only applied when `interpolate: true`.
+</ParamField>
+<ParamField path="interpolate" type="boolean">
+  Run server-side variable substitution over the inline content. Defaults to
+  `false` (content delivered verbatim).
+</ParamField>
+<ParamField path="metadata" type="object">
+  Free-form metadata.
+</ParamField>
+<ParamField path="scheduledAt" type="string">
+  ISO 8601 timestamp for scheduled delivery.
+</ParamField>
+<ParamField path="idempotencyKey" type="string">
+  Idempotency key.
+</ParamField>
+<ParamField path="cc" type="string[]">
+  Email-only. Cc recipients as a JSON array of addresses (max 50).
+</ParamField>
+<ParamField path="bcc" type="string[]">
+  Email-only. Bcc recipients as a JSON array of addresses (max 50).
+</ParamField>
+<ParamField path="replyTo" type="string">
+  Email-only. Reply-To address.
+</ParamField>
+<ParamField path="attachments" type="Attachment[]">
+  Email-only. Same shape as `senderkit_send`.
+</ParamField>
+
+## Templates
+
+### `senderkit_templates_list`
+
+List available templates. No parameters.
+
+Use when the agent needs to discover what's available before sending — e.g.
+asking "which templates exist?" — or to confirm a slug before referencing it.
+Mirrors `GET /v1/templates`. See [Templates](/concepts/templates).
+
+### `senderkit_templates_get`
+
+Fetch a single template by slug.
+
+Use to inspect a template's current state — its channel, status, and currently
+published version (excluding the raw content blob). Mirrors
+`GET /v1/templates/{slug}`.
+
+<ParamField path="slug" type="string" required>
+  Template slug, e.g. `"welcome"`. Slugs are always lowercase.
+</ParamField>
+
+### `senderkit_templates_create`
+
+Generate a new template from a plain-language brief and save it as a **draft**.
+
+The tool composes channel-native content server-side and returns a deep link to
+review the draft in the editor. Nothing is sent until the user reviews and
+publishes the draft. Template creation counts toward the workspace's template
+cap; the tool returns `409 template_limit_reached` if the cap is hit before the
+AI call runs.
+
+This is a non-destructive write — creating a draft doesn't modify or remove
+anything that already exists.
+
+<ParamField path="channel" type='"email" | "sms" | "push" | "web-push"' required>
+  The channel for the new template.
+</ParamField>
+<ParamField path="brief" type="string" required>
+  Plain-language description of the message to generate (max 4,000 characters).
+</ParamField>
+<ParamField path="slug" type="string">
+  Lowercase URL-safe identifier (digits, `a-z`, `_`, `-`). Converted to
+  lowercase automatically. Auto-derived from the brief if omitted; a numeric
+  suffix is appended on collision.
+</ParamField>
+<ParamField path="description" type="string">
+  Optional internal note (max 280 characters).
+</ParamField>
+
+### `senderkit_templates_regenerate`
+
+Regenerate an existing **draft** template from a new brief.
+
+This fully replaces the draft's content and discards any manual edits made in
+the editor — warn the user before calling. Only draft templates can be
+regenerated; published templates are left untouched.
+
+<ParamField path="slug" type="string" required>
+  Slug of the draft template to regenerate.
+</ParamField>
+<ParamField path="brief" type="string" required>
+  New brief that fully replaces the draft's content (max 4,000 characters).
+</ParamField>
+
+## Messages
+
+### `senderkit_messages_list`
+
+List messages, optionally filtered.
+
+The agent's window into [message history](/concepts/messages). Use it to answer
+"did the welcome email to user@example.com go through?" or "show me recent
+failures." Mirrors `GET /v1/messages`.
+
+<ParamField path="limit" type="integer">
+  Max messages to return, 1-200 (default 50).
+</ParamField>
+<ParamField path="cursor" type="string">
+  Pagination cursor from a previous response.
+</ParamField>
+<ParamField path="status" type='"scheduled" | "queued" | "rendered" | "dispatched" | "sent" | "delivered" | "failed" | "opted_out" | "blocked" | "canceled"'>
+  Filter by [message status](/concepts/messages#the-message-lifecycle).
+</ParamField>
+<ParamField path="channel" type='"email" | "sms" | "push" | "web-push"'>
+  Filter by channel.
+</ParamField>
+<ParamField path="template" type="string">
+  Filter by template slug.
+</ParamField>
+<ParamField path="metadata" type="object">
+  Filter by metadata; every key/value must match (jsonb containment).
+</ParamField>
+
+### `senderkit_messages_get`
+
+Fetch a single message by ID.
+
+Use to inspect the full record for one send — its current status, the
+provider's response, and the timeline of events. Mirrors
+`GET /v1/messages/{id}`.
+
+<ParamField path="id" type="string" required>
+  Public message id, e.g. `"msg_…"`.
+</ParamField>
+
+### `senderkit_cancel_message`
+
+Cancel a still-pending (scheduled or queued) message by ID.
+
+Use to abort a [scheduled send](/concepts/sending#scheduling-sends) before its
+fire time, or pull back a message that hasn't yet been handed to a provider.
+Only `scheduled` and `queued` messages are cancelable — anything later returns
+a `409`, since delivery once started isn't reversible. Mirrors
+`DELETE /v1/messages/{id}`.
+
+<ParamField path="id" type="string" required>
+  Public message id, e.g. `"msg_…"`.
+</ParamField>
+
+## Inbound
+
+Requires an API key or connection scoped for [inbound email](/concepts/inbound)
+(the `inbound` [scope](/authentication#scopes)).
+
+### `senderkit_inbound_addresses_list`
+
+List the workspace's programmatic inbound email addresses. No parameters.
+
+Use to check which addresses already exist before creating another one, or to
+find an address's id. Mirrors `GET /v1/inbound/addresses`.
+
+### `senderkit_inbound_addresses_create`
+
+Create a new inbound email address that receives mail for the workspace — on
+the shared receiving domain or a verified [custom domain](/concepts/inbound#custom-domains)
+— and, optionally, forwards it and/or fires a webhook on receipt. Mirrors
+`POST /v1/inbound/addresses`. This is a non-destructive write — it only adds
+a new address.
+
+<ParamField path="localPart" type="string">
+  Local part before the `@`, e.g. `"invoices"` for
+  `invoices@{workspace}.in.senderkit.email`. Omit to mint an unguessable
+  random one. Pass `"*"` for a catch-all that receives every local part on its
+  domain that no exact address already claims. Max 64 characters.
+</ParamField>
+<ParamField path="description" type="string">
+  Optional internal note describing what this address is for. Max 200 characters.
+</ParamField>
+<ParamField path="forwardTo" type="string">
+  Email address to forward received mail to. Must be a plausible address and
+  can't be another inbound address (would create a mail loop).
+</ParamField>
+<ParamField path="webhookEndpointId" type="string">
+  This workspace's webhook endpoint id to fire a `message.received` event to
+  on receipt. Must be an active, live-mode endpoint owned by this workspace.
+</ParamField>
+<ParamField path="domainId" type="string">
+  A verified [custom inbound domain](/concepts/inbound#custom-domains) id
+  (from `senderkit_inbound_domains_list`) to mint the address on. Omit for the
+  workspace's shared receiving domain.
+</ParamField>
+<ParamField path="livemode" type="boolean">
+  Defaults to `true`. A test-mode address still receives real mail, but fans
+  out only to test-mode webhook endpoints and doesn't count against quota.
+</ParamField>
+
+### `senderkit_inbound_addresses_delete`
+
+Delete an inbound address by id. It immediately stops receiving new mail;
+already-received messages are unaffected. Mirrors
+`DELETE /v1/inbound/addresses/{id}`.
+
+<ParamField path="id" type="string" required>
+  Inbound address id, e.g. `"inb_…"`.
+</ParamField>
+
+### `senderkit_inbound_messages_list`
+
+List received inbound messages for the workspace, newest first. Mirrors
+`GET /v1/inbound/messages`.
+
+<ParamField path="address" type="string">
+  Inbound address id (e.g. `"inb_…"`) to filter by.
+</ParamField>
+<ParamField path="limit" type="integer">
+  Max messages to return, 1-100 (default 50).
+</ParamField>
+<ParamField path="before" type="string">
+  ISO 8601 cursor — only return messages received strictly before this instant.
+  A non-ISO-8601 value is rejected with `invalid_request` rather than silently
+  ignored.
+</ParamField>
+
+### `senderkit_inbound_messages_get`
+
+Fetch a single received inbound message by id — envelope, headers, subject,
+body, attachments, and spam/auth verdicts. Mirrors
+`GET /v1/inbound/messages/{id}`.
+
+<ParamField path="id" type="string" required>
+  Inbound message id, e.g. `"rcv_…"`.
+</ParamField>
+
+Attachment and raw-source links on the returned message are authenticated
+`/v1/inbound/*` API links, not signed/presigned URLs — fetch them with an
+`Authorization: Bearer` header carrying a key with the `inbound` scope. See
+[Inbound Email](/concepts/inbound) for the full reference.
+
+### `senderkit_inbound_domains_list`
+
+List the workspace's inbound domains — the shared receiving domain and any
+custom domains — with their verification status and, for a pending custom
+domain, the DNS records still required to verify it. No parameters. Mirrors
+`GET /v1/inbound/domains`.
+
+### `senderkit_inbound_domains_create`
+
+Claim a custom domain for receiving mail, e.g. `"inbound.acme.com"`. Mirrors
+`POST /v1/inbound/domains`. Returns the DNS records (an MX, plus a DKIM TXT
+proving ownership — skipped if the domain already has a verified custom
+sending domain, which reuses its identity) — surface these to the user
+exactly as returned. Nothing is received until the records are live and a
+background sweep verifies the domain.
+
+<ParamField path="domain" type="string" required>
+  Domain to claim for receiving, e.g. `"inbound.acme.com"`. Must not already
+  be claimed and must not be a `senderkit.com`/`senderkit.email` suffix.
+</ParamField>
+<ParamField path="acknowledgeExistingMx" type="boolean">
+  Only pass `true` after the user has explicitly confirmed they want to
+  redirect this domain's mail to SenderKit. Omit on the first attempt — if the
+  domain already has live MX records pointing elsewhere, the call fails with a
+  `409` (`existing_mx`) naming the current mail host(s), so you can confirm
+  before retrying with this set.
+</ParamField>
+
+### `senderkit_inbound_domains_delete`
+
+Delete a custom inbound domain by id. Its addresses stop receiving mail
+immediately. The workspace's shared receiving domain can't be deleted.
+Mirrors `DELETE /v1/inbound/domains/{id}`.
+
+<ParamField path="id" type="string" required>
+  Inbound domain id (UUID) to delete.
+</ParamField>
+
+## Errors
+
+Tool failures come back as MCP errors with a single text message. The shape:
+
+- **Validation** — `invalid_request: <field> <message>`. A missing required
+  field, wrong type, or invalid ISO timestamp. Validation errors name the
+  specific offending field rather than a generic message.
+- **Domain** — `<code>: <message>` from the underlying API. e.g.
+  `template_not_found: No template "welcom"`, `rate_limited: Too many requests`.
+- **Auth** — `unauthorized` on a missing or invalid API key.
+- **Permission** — `insufficient_scope` when the key is valid but doesn't hold
+  the scope required by the called tool. See
+  [Authentication → Scopes](/authentication#scopes).
+
+If your agent isn't doing what you expect, ask it to print the raw tool error.
+The text matches the [REST API's](/api-reference/introduction) `code` /
+`message` pair, so anything in the API troubleshooting guide applies here too.
+
+<CardGroup cols={2}>
+  <Card title="Sending" icon="paper-plane" href="/concepts/sending">
+    How a send becomes a delivered message.
+  </Card>
+  <Card title="Messages" icon="list-check" href="/concepts/messages">
+    The lifecycle behind every tool response.
+  </Card>
+  <Card title="Inbound Email" icon="inbox" href="/concepts/inbound">
+    Provision addresses and receive mail as a `message.received` webhook.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    The REST surface backing these tools.
+  </Card>
+  <Card title="Installation" icon="plug" href="/mcp/installation">
+    Connect a client and start calling tools.
+  </Card>
+</CardGroup>
