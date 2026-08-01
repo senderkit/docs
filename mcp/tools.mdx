@@ -68,10 +68,10 @@ template" or "email a notice to user@example.com". Mirrors the
   original send instead of duplicating.
 </ParamField>
 <ParamField path="cc" type="string[]">
-  Email-only. Cc recipients.
+  Email-only. Cc recipients as a JSON array of addresses (max 50).
 </ParamField>
 <ParamField path="bcc" type="string[]">
-  Email-only. Bcc recipients.
+  Email-only. Bcc recipients as a JSON array of addresses (max 50).
 </ParamField>
 <ParamField path="replyTo" type="string">
   Email-only. Reply-To address.
@@ -101,8 +101,10 @@ send a status update to this list." See
   The channel to send on.
 </ParamField>
 <ParamField path="to" type="string" required>
-  Recipient address. For `channel: "web-push"`, the JSON-encoded browser
-  `PushSubscription` (endpoint + `p256dh`/`auth` keys).
+  Recipient address — email address, E.164 phone number for `channel: "sms"`,
+  push device token for `channel: "push"`, or the JSON-encoded browser
+  `PushSubscription` (endpoint + `p256dh`/`auth` keys) for `channel: "web-push"`.
+  Non-E.164 SMS recipients are rejected.
 </ParamField>
 <ParamField path="subject" type="string">
   Email subject. Required for `channel: "email"`.
@@ -161,10 +163,10 @@ send a status update to this list." See
   Idempotency key.
 </ParamField>
 <ParamField path="cc" type="string[]">
-  Email-only. Cc recipients.
+  Email-only. Cc recipients as a JSON array of addresses (max 50).
 </ParamField>
 <ParamField path="bcc" type="string[]">
-  Email-only. Bcc recipients.
+  Email-only. Bcc recipients as a JSON array of addresses (max 50).
 </ParamField>
 <ParamField path="replyTo" type="string">
   Email-only. Reply-To address.
@@ -204,6 +206,9 @@ review the draft in the editor. Nothing is sent until the user reviews and
 publishes the draft. Template creation counts toward the workspace's template
 cap; the tool returns `409 template_limit_reached` if the cap is hit before the
 AI call runs.
+
+This is a non-destructive write — creating a draft doesn't modify or remove
+anything that already exists.
 
 <ParamField path="channel" type='"email" | "sms" | "push" | "web-push"' required>
   The channel for the new template.
@@ -246,7 +251,7 @@ The agent's window into [message history](/concepts/messages). Use it to answer
 failures." Mirrors `GET /v1/messages`.
 
 <ParamField path="limit" type="integer">
-  Max messages to return.
+  Max messages to return, 1-200 (default 50).
 </ParamField>
 <ParamField path="cursor" type="string">
   Pagination cursor from a previous response.
@@ -307,7 +312,8 @@ find an address's id. Mirrors `GET /v1/inbound/addresses`.
 Create a new inbound email address that receives mail for the workspace — on
 the shared receiving domain or a verified [custom domain](/concepts/inbound#custom-domains)
 — and, optionally, forwards it and/or fires a webhook on receipt. Mirrors
-`POST /v1/inbound/addresses`.
+`POST /v1/inbound/addresses`. This is a non-destructive write — it only adds
+a new address.
 
 <ParamField path="localPart" type="string">
   Local part before the `@`, e.g. `"invoices"` for
@@ -359,6 +365,8 @@ List received inbound messages for the workspace, newest first. Mirrors
 </ParamField>
 <ParamField path="before" type="string">
   ISO 8601 cursor — only return messages received strictly before this instant.
+  A non-ISO-8601 value is rejected with `invalid_request` rather than silently
+  ignored.
 </ParamField>
 
 ### `senderkit_inbound_messages_get`
@@ -419,7 +427,8 @@ Mirrors `DELETE /v1/inbound/domains/{id}`.
 Tool failures come back as MCP errors with a single text message. The shape:
 
 - **Validation** — `invalid_request: <field> <message>`. A missing required
-  field, wrong type, or invalid ISO timestamp.
+  field, wrong type, or invalid ISO timestamp. Validation errors name the
+  specific offending field rather than a generic message.
 - **Domain** — `<code>: <message>` from the underlying API. e.g.
   `template_not_found: No template "welcom"`, `rate_limited: Too many requests`.
 - **Auth** — `unauthorized` on a missing or invalid API key.

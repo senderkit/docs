@@ -95,7 +95,9 @@ senderkit.send(request: SendRequest): Promise<SendResponse>
 </ParamField>
 
 <ParamField path="to" type="string" required>
-  Recipient address — email, phone number, or push token.
+  Recipient address — email address, E.164 phone number, push device token, or
+  JSON-encoded web-push `PushSubscription`, depending on the resolved channel.
+  A non-E.164 SMS recipient is rejected.
 </ParamField>
 
 <ParamField path="vars" type="Record<string, unknown>">
@@ -128,11 +130,11 @@ senderkit.send(request: SendRequest): Promise<SendResponse>
 </ParamField>
 
 <ParamField path="cc" type="string[]">
-  Cc recipients. Email only.
+  Cc recipients. Email only. Max 50 addresses.
 </ParamField>
 
 <ParamField path="bcc" type="string[]">
-  Bcc recipients. Email only.
+  Bcc recipients. Email only. Max 50 addresses.
 </ParamField>
 
 <ParamField path="replyTo" type="string">
@@ -225,7 +227,8 @@ server-side variable substitution over it. Returns the same `SendResponse` as
     ```
   </Tab>
   <Tab title="sms">
-    `content: RawSmsContent` — `{ body }`.
+    `content: RawSmsContent` — `{ body }`. `to` must be a valid E.164 phone
+    number (e.g. `+14155551234`); non-conforming values are rejected.
 
     ```ts
     await senderkit.sendRaw({
@@ -354,7 +357,7 @@ senderkit.messages.cancel(id: string): Promise<CancelMessageResponse>
 ```
 
 <ParamField path="params.limit" type="number">
-  Max messages to return. The server applies its own default and cap.
+  Max messages to return, 1-200 (default 50).
 </ParamField>
 
 <ParamField path="params.cursor" type="string">
@@ -403,6 +406,8 @@ return a `409` (`SenderKitApiError`) — and resolves to
   the account's suppression list. It's distinct from `"failed"`, which is a
   bounce reported by the receiving mail server after an actual delivery
   attempt. Bring-your-own-provider connections never return `"suppressed"`.
+  Subscribe to the `message.suppressed` [webhook event](/webhooks) to be
+  notified as it happens.
 </Note>
 
 <Note>

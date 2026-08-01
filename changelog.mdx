@@ -14,6 +14,56 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="July 31, 2026" description="@senderkit/sdk@0.14.0 / @senderkit/cli@0.9.0 — MCP manifest wire-contract fixes" tags={["SDK", "CLI", "MCP"]}>
+  ## SDK/CLI/MCP release: manifest wire-contract fixes
+
+  **`@senderkit/sdk@0.14.0` / `@senderkit/cli@0.9.0`**
+
+  A pass over the MCP tool manifest tightened several tool schemas to state
+  the real wire contract:
+
+  - **`cc` / `bcc` are documented as JSON arrays, capped at 50 recipients.**
+    [`senderkit_send`](/mcp/tools#senderkit_send) and
+    [`senderkit_send_raw`](/mcp/tools#senderkit_send_raw) now say so directly,
+    matching the API's existing limit. The CLI keeps accepting comma-separated
+    values via its own flag help — nothing changes for CLI users.
+  - **List limits are enforced in the schema, not just the description.**
+    [`senderkit_messages_list.limit`](/mcp/tools#senderkit_messages_list) is
+    bounded 1–200 (default 50); [`senderkit_inbound_messages_list.limit`](/mcp/tools#senderkit_inbound_messages_list)
+    enforces the 1–100 range its description already claimed. An out-of-range
+    value now fails validation instead of being silently clamped server-side.
+  - **Additive writes carry an honest annotation.** Tools that only create
+    something new — `senderkit_templates_create` and
+    `senderkit_inbound_addresses_create` — now declare `destructiveHint: false`
+    instead of `true`, so well-behaved MCP clients don't demand confirmation
+    for a reversible, non-destructive call.
+
+  The Python and PHP SDKs are unaffected — these are MCP-manifest-only changes.
+</Update>
+
+<Update label="July 31, 2026" description="MCP/API: field-specific send errors, E.164 SMS validation, stricter inbound cursor" tags={["MCP"]}>
+  ## Clearer send errors, plus stricter recipient and cursor validation
+
+  A few consistency fixes to the hosted MCP server and the REST API it wraps —
+  no SDK/CLI version bump required:
+
+  - **Field-specific validation errors.** A malformed
+    [`senderkit_send`](/mcp/tools#senderkit_send) /
+    [`senderkit_send_raw`](/mcp/tools#senderkit_send_raw) call — e.g. an email
+    send missing `subject` or `html` — now names the offending field
+    (`invalid_request: subject Required`) instead of a generic `Invalid input`
+    message. The equivalent `POST /v1/send` / `POST /v1/send-raw` REST error
+    `issues` array gained the same precision.
+  - **SMS recipients are validated as E.164.** `to` on an SMS send must now be
+    a valid E.164 phone number (e.g. `+14155551234`); previously a malformed
+    value was accepted and simulated as delivered instead of being rejected.
+  - **`before` on inbound message listing is validated strictly.**
+    [`senderkit_inbound_messages_list.before`](/mcp/tools#senderkit_inbound_messages_list)
+    and `GET /v1/inbound/messages?before=` now reject a non-ISO-8601 value
+    with a clear `invalid_request` error instead of silently returning an
+    empty page.
+</Update>
+
 <Update label="July 29, 2026" description="@senderkit/sdk@0.13.0 / @senderkit/cli@0.8.0 — inbound namespace, suppressed status, full custom-domain reference" tags={["SDK", "CLI", "MCP"]}>
   ## SDK/CLI/MCP release: inbound namespace + suppressed status type
 
@@ -97,6 +147,12 @@ This page tracks releases of SenderKit's developer libraries — the
     above), `suppressed` is included in the TypeScript SDK's exported
     `Message.status` values. The Python and PHP SDKs pick it up in their own
     upcoming releases.
+  </Note>
+
+  <Note>
+    Update: a matching **`message.suppressed`** [webhook event](/webhooks#events)
+    fires whenever a send lands in this status, so you can react to it without
+    polling. See the [Webhooks → Events](/webhooks#events) reference.
   </Note>
 </Update>
 

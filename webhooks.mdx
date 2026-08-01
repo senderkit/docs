@@ -21,6 +21,7 @@ Internal pipeline states (`queued`, `rendered`) are not emitted.
 | `message.sent` | The message was handed off to the email/SMS/push provider |
 | `message.delivered` | The provider confirmed delivery to the recipient |
 | `message.failed` | The message bounced, errored, or exhausted retries |
+| `message.suppressed` | The send was skipped before dispatch — the recipient failed validation or was already on the suppression list |
 | `message.opted_out` | The recipient unsubscribed, via a one-click link or a provider event |
 | `message.complained` | The provider reported the message as spam |
 | `message.opened` | The provider reported the recipient opened the email (first occurrence only) |
@@ -43,6 +44,16 @@ Internal pipeline states (`queued`, `rendered`) are not emitted.
   the `opted_out` status itself (see [Messages](/concepts/messages#the-message-lifecycle)).
   A spam complaint fires both `message.complained` and `message.opted_out`; a
   plain unsubscribe fires `message.opted_out` alone.
+</Note>
+
+<Note>
+  `message.suppressed` fires on managed (AWS SES) sending only, when the
+  recipient address fails SES validation or is already on the account's
+  suppression list — the send is skipped before it ever reaches a provider,
+  and the message lands in the terminal `suppressed` status. It's distinct
+  from `message.failed`, which reports a real bounce from the receiving mail
+  server after an actual delivery attempt. Bring-your-own-provider connections
+  never emit `message.suppressed`.
 </Note>
 
 ## Setting up an endpoint
