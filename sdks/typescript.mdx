@@ -491,16 +491,21 @@ console.log(full.subject, full.text);
   on. Omit for the workspace's shared `{slug}.in.senderkit.email` domain.
 </ParamField>
 <ParamField path="addresses.create(params).livemode" type="boolean" default="true">
-  Test-mode (`false`) addresses still receive real mail, but fan out only to
-  test-mode webhook endpoints and don't count against the message quota.
+  Test-mode (`false`) addresses still receive real mail and fan out to
+  test-mode webhook endpoints, but any `forwardTo` is recorded as a test send
+  rather than actually delivered. Every address, test or live, counts toward
+  the inbound-address plan limit — only received *messages* on a test-mode
+  address skip the message quota.
 </ParamField>
 <ParamField path="addresses.create(params).forwardTo" type="string">
   Also forward received mail to a real inbox. Can't point at another inbound
   address (rejected as a mail loop).
 </ParamField>
 <ParamField path="addresses.create(params).webhookEndpointId" type="string">
-  Bind the address to one specific webhook endpoint. Left unset,
-  `message.received` fans out to every endpoint subscribed to it.
+  Bind the address to one specific webhook endpoint — it receives
+  `message.received` even if not itself subscribed, but must be active and
+  match the address's `livemode`. Left unset, `message.received` fans out to
+  every active endpoint subscribed to it in the address's mode.
 </ParamField>
 
 <ParamField path="domains.create(params).domain" type="string" required>
