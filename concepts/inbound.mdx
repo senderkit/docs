@@ -93,22 +93,30 @@ curl https://api.senderkit.com/v1/inbound/addresses \
 
 - Omit `localPart` to get an unguessable generated one (`rcv-xxxxxxxxxx`) —
   useful when you're embedding the address somewhere you don't want a
-  guessable alias, like a reply-to header on an outbound email.
+  guessable alias, like a reply-to header on an outbound email. Otherwise
+  it's 1-64 characters of `a-z`, `0-9`, `.`, `_`, `-`, must start and end
+  alphanumeric, and is lowercased automatically.
 - Pass `localPart: "*"` for a **catch-all** address that receives mail for
   every local part on its domain that no exact address already claims — an
-  exact-match address always takes priority over the catch-all. A catch-all
-  counts as one address against the plan cap like any other.
+  exact-match address always takes priority over the catch-all, and the
+  catch-all sentinel bypasses the character rules and the reserved-name list.
+  A catch-all counts as one address against the plan cap like any other.
 - `domainId` mints the address on a verified [custom domain](#custom-domains)
   (its `id` from `GET /v1/inbound/domains`) instead of the shared domain.
 - `livemode` defaults to `true`. A test-mode address (`false`) still receives
-  real mail, but only fans out to test-mode webhook endpoints and doesn't
-  count against the message quota.
+  real mail and fans out to test-mode webhook endpoints, but any configured
+  `forwardTo` is recorded as a test send rather than actually delivered.
+  Every address — test or live — counts the same toward the plan's inbound
+  address cap below; only *messages* received on a test-mode address skip the
+  message quota (see [Billing](#billing)).
 - `forwardTo` is optional and forwards a copy of every received message to a
   real inbox. It can't point at another inbound address — that's rejected as a
   mail loop.
 - `webhookEndpointId` optionally binds the address to one specific webhook
-  endpoint. Left unset, `message.received` events fan out to every endpoint
-  subscribed to that event.
+  endpoint — that endpoint receives `message.received` even if it isn't
+  itself subscribed to the event, but it must be active and in the same mode
+  (`livemode`) as the address. Left unset, `message.received` events fan out
+  to every active endpoint subscribed to that event in the address's mode.
 - A few local parts (`postmaster`, `abuse`, `unsubscribe`) are reserved and
   can't be claimed.
 

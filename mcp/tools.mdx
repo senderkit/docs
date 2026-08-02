@@ -317,9 +317,10 @@ a new address.
 
 <ParamField path="localPart" type="string">
   Local part before the `@`, e.g. `"invoices"` for
-  `invoices@{workspace}.in.senderkit.email`. Omit to mint an unguessable
-  random one. Pass `"*"` for a catch-all that receives every local part on its
-  domain that no exact address already claims. Max 64 characters.
+  `invoices@{slug}.in.senderkit.email` — 1-64 chars of `a-z`, `0-9`, `.`, `_`,
+  `-`, starting and ending alphanumeric (lowercased; some names are
+  reserved). Pass `"*"` for a catch-all that receives mail for every local
+  part no exact address claims. Omit to mint an unguessable random one.
 </ParamField>
 <ParamField path="description" type="string">
   Optional internal note describing what this address is for. Max 200 characters.
@@ -329,8 +330,11 @@ a new address.
   can't be another inbound address (would create a mail loop).
 </ParamField>
 <ParamField path="webhookEndpointId" type="string">
-  This workspace's webhook endpoint id to fire a `message.received` event to
-  on receipt. Must be an active, live-mode endpoint owned by this workspace.
+  This workspace's webhook endpoint id to fire `message.received` events to on
+  receipt — a bound endpoint receives them even if not subscribed, but must be
+  active and match this address's `livemode` (test-mode addresses bind
+  test-mode endpoints). When unset, events fan out to every active endpoint
+  subscribed to `message.received` in the address's mode.
 </ParamField>
 <ParamField path="domainId" type="string">
   A verified [custom inbound domain](/concepts/inbound#custom-domains) id
@@ -338,8 +342,10 @@ a new address.
   workspace's shared receiving domain.
 </ParamField>
 <ParamField path="livemode" type="boolean">
-  Defaults to `true`. A test-mode address still receives real mail, but fans
-  out only to test-mode webhook endpoints and doesn't count against quota.
+  Defaults to `true`. Test-mode addresses receive real mail but fan out only
+  to test-mode webhook endpoints, and their forwards are recorded as test
+  sends without real delivery. Every address, test or live, counts toward the
+  plan's inbound-address limit.
 </ParamField>
 
 ### `senderkit_inbound_addresses_delete`
