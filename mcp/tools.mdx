@@ -157,7 +157,7 @@ send a status update to this list." See
   Free-form metadata.
 </ParamField>
 <ParamField path="scheduledAt" type="string">
-  ISO 8601 timestamp for scheduled delivery.
+  ISO 8601 timestamp for scheduled delivery. Must be in the future, within 30 days.
 </ParamField>
 <ParamField path="idempotencyKey" type="string">
   Idempotency key.

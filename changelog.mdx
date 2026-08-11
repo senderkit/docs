@@ -14,6 +14,27 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="August 6, 2026" description="@senderkit/sdk@0.14.2 / @senderkit/cli@0.9.2 — SMS recipient format documentation" tags={["SDK", "CLI", "MCP"]}>
+  ## SDK/CLI/MCP release: SMS recipient format
+
+  **`@senderkit/sdk@0.14.2` / `@senderkit/cli@0.9.2`**
+
+  The hosted API rejects a non-E.164 SMS `to` up front with `400 invalid_recipient`
+  — for both template and raw sends — instead of accepting it and failing later at
+  dispatch. This release brings the SDK/CLI/MCP surface in line with that contract:
+
+  - **[`senderkit_send_raw`](/mcp/tools#senderkit_send_raw)'s `to` field** now
+    spells out the per-channel recipient formats, including the E.164
+    requirement for `sms` — matching [`senderkit_send`](/mcp/tools#senderkit_send),
+    which already documented it. This flows through to the `senderkit send-raw`
+    CLI help.
+  - The SDK README's SMS example now notes the E.164 requirement and the
+    `400 invalid_recipient` response.
+
+  No behavior change in the client itself — recipient validation stays
+  server-side. The Python and PHP SDKs are unaffected.
+</Update>
+
 <Update label="August 1, 2026" description="@senderkit/sdk@0.14.1 / @senderkit/cli@0.9.1 — inbound tool wording and annotation fixes" tags={["SDK", "CLI", "MCP"]}>
   ## SDK/CLI/MCP release: inbound tool corrections
 
