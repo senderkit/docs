@@ -1,4 +1,3 @@
----
 title: "Channels & Providers"
 description: "Email, SMS, push, and web push delivered through your own provider connections."
 icon: 'tower-broadcast'
@@ -116,6 +115,14 @@ record, merge the SenderKit SPF mechanism into it rather than publishing a secon
 SenderKit polls DNS every 5 minutes. You can also click **Check now** at any time.
 Verification typically completes within minutes once records propagate. Claims expire
 after 72 hours — if the domain isn't verified in time, you can resubmit.
+
+Verified domains are also periodically rechecked. If the DKIM record is removed or
+changed after verification, the domain moves to a **broken** state: sends from it fail
+fast with a clear error instead of silently falling back to the shared sender, and
+workspace owners get an email pointing at the fix. Restore
+the DNS record and click **Re-verify** on the domain in **Dashboard → Channels** to
+recover — this restarts verification against your existing records without generating
+a new DKIM key, so no DNS changes are needed if the record is simply restored.
 
 ### From-address override on raw sends
 
