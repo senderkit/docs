@@ -130,7 +130,7 @@ require an API key with the `inbound` [scope](/authentication#scopes).
 `GET /v1/inbound/messages/{id}` returns the full message — parsed `text` and
 `html` bodies, `from`/`to`/`cc`, raw `headers`, a `strippedReply` (the
 plain-text reply with quoted history and signature stripped for reply-parsing
-use cases), and SES scanning `verdicts` (spam, virus, SPF, DKIM).
+use cases), and scanning `verdicts` (spam, virus, SPF, DKIM), as reported.
 
 Each message also has a `status`:
 

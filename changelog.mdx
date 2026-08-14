@@ -14,6 +14,38 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="August 13, 2026" description="@senderkit/sdk@0.15.0 / @senderkit/cli@0.10.0 — complete MCP safety-hint trio" tags={["SDK", "CLI", "MCP"]}>
+  ## SDK/CLI/MCP release: explicit safety hints on every tool
+
+  **`@senderkit/sdk@0.15.0` / `@senderkit/cli@0.10.0`**
+
+  - **Every MCP tool now states all three safety hints explicitly** —
+    `readOnlyHint`, `openWorldHint`, and `destructiveHint` — instead of
+    leaving some to a client's inferred defaults.
+    [`senderkit_send`](/mcp/tools#senderkit_send) and
+    [`senderkit_send_raw`](/mcp/tools#senderkit_send_raw) are the only tools
+    with `openWorldHint: true`, since they're the only ones that deliver
+    messages to recipients outside SenderKit; every read-only tool now also
+    states `openWorldHint: false` and `destructiveHint: false` directly.
+
+    <Note>
+      For TypeScript consumers, this widens the SDK's `ToolAnnotations` type:
+      code that previously constructed a partial value (e.g.
+      `{ readOnlyHint: true }`) must now supply all three hints.
+    </Note>
+
+  - The inbound message [`verdicts`](/concepts/inbound#reading-received-mail)
+    field description is now provider-neutral — it describes scanning
+    verdicts (spam/virus/SPF/DKIM) without naming the underlying receiving
+    infrastructure. The field's shape and runtime values are unchanged.
+  - [`senderkit_send_raw`](/mcp/tools#senderkit_send_raw)'s `scheduledAt`
+    field documents the same "must be in the future, within 30 days"
+    constraint as `senderkit_send`, and its `subject`/`html` fields now state
+    they're required when `channel` is `"email"`.
+
+  The Python and PHP SDKs are unaffected — these are MCP-manifest-only changes.
+</Update>
+
 <Update label="August 6, 2026" description="@senderkit/sdk@0.14.2 / @senderkit/cli@0.9.2 — SMS recipient format documentation" tags={["SDK", "CLI", "MCP"]}>
   ## SDK/CLI/MCP release: SMS recipient format
 
