@@ -67,7 +67,8 @@ as live without anything leaving the building.
 ## Querying messages
 
 List messages newest-first with cursor pagination, and filter by `status`, `channel`,
-`template`, or your own `metadata`:
+`template`, or your own `metadata`. A `search` param does a case-insensitive substring
+match over the message id, recipient, template, and your `metadata` keys/values:
 
 ```ts
 const { data, nextCursor } = await senderkit.messages.list({

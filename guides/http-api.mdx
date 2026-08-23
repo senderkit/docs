@@ -134,7 +134,9 @@ On `429`, back off using `Retry-After` and retry with the **same**
 
 Sending is asynchronous, so poll `GET /v1/messages` to observe progress.
 Filter and paginate with query params; correlate to your own records via the
-`metadata` you attached at send time.
+`metadata` you attached at send time. `search` does a case-insensitive substring
+match over the message id, recipient, template, and `metadata` keys/values (max
+512 characters).
 
 <CodeGroup>
 ```ts fetch
@@ -143,6 +145,8 @@ url.searchParams.set("status", "failed");
 url.searchParams.set("limit", "100");
 // Filter by metadata: metadata[key]=value
 url.searchParams.set("metadata[userId]", "usr_123");
+// Or free-text search across id, recipient, template, and metadata:
+// url.searchParams.set("search", "usr_123");
 
 const res = await fetch(url, {
   headers: { Authorization: `Bearer ${process.env.SENDERKIT_API_KEY}` },
