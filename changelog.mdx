@@ -14,6 +14,40 @@ This page tracks releases of SenderKit's developer libraries — the
   documents. New entries land here as each library ships a version.
 </Note>
 
+<Update label="August 23, 2026" description="API/Logs: search messages by id, recipient, template, or metadata" tags={["Dashboard"]}>
+  ## Full-text search over your message history
+
+  `GET /v1/messages` (and the dashboard's **Logs** page) now accepts a
+  `search` query param: a case-insensitive substring match across the
+  message id, recipient, template, and your `metadata` keys/values. It
+  composes with the existing `status`/`channel`/`template`/`metadata`
+  filters and cursor pagination, and is capped at 512 characters. See
+  [Querying messages](/concepts/messages#querying-messages).
+</Update>
+
+<Update label="August 19, 2026" description="@senderkit/sdk@0.16.0 — MCP output schemas and structured results" tags={["SDK", "MCP"]}>
+  ## SDK/MCP release: an `outputSchema` on every tool
+
+  **`@senderkit/sdk@0.16.0`**
+
+  - **Every MCP manifest tool now declares an `outputSchema`**
+    (`McpToolSpec.outputSchema`, plus one exported `*Output` Zod shape per
+    tool in `@senderkit/sdk/mcp`) describing its structured result. The
+    hosted server at `mcp.senderkit.com` advertises these via `tools/list`
+    and returns every result as `structuredContent` alongside the existing
+    JSON text. See [Structured results](/mcp/tools#structured-results).
+  - **Message results no longer include internal identifiers** on the hosted
+    MCP server: `senderkit_messages_list` and `senderkit_messages_get` return
+    the public `publicId` but not the database row id, workspace id, or
+    provider-connection id. The REST API's `GET /v1/messages` responses are
+    unchanged.
+  - Exports the `TEMPLATE_STATUSES`, `INBOUND_MESSAGE_STATUSES`,
+    `INBOUND_DOMAIN_KINDS`, and `INBOUND_DOMAIN_STATUSES` enums the shapes
+    use.
+  - The CLI-bundled stdio server is unchanged in this release (it does not
+    declare output schemas yet).
+</Update>
+
 <Update label="August 17, 2026" description="Mailgun: temporary delivery delays no longer marked as failed" tags={["Integration"]}>
   ## Mailgun connections no longer strand messages on a temporary delay
 
@@ -26,6 +60,22 @@ This page tracks releases of SenderKit's developer libraries — the
   permanent failure is now treated as terminal; a temporary delay leaves the
   message in its prior status until a real `delivered` or `failed` outcome
   arrives. No action is needed on your end.
+</Update>
+
+<Update label="August 14, 2026" description="Twilio: SMS delivery status now updates" tags={["Integration"]}>
+  ## Twilio SMS delivery status tracking now works
+
+  Twilio SMS connections could never record delivery status — messages stayed
+  at `sent`, and the `message.delivered` / `message.failed`
+  [webhooks](/webhooks) never fired for SMS sends, regardless of how the
+  connection was configured. This is fixed.
+
+  Delivery status tracking for a Twilio connection is opt-in: set the
+  connection's **Status callback URL (optional)** field to the exact
+  status-callback URL configured in Twilio for that number or Messaging
+  Service (Twilio signs it verbatim, so it must match character-for-character,
+  including any trailing slash). Sends work the same either way — this field
+  only affects whether status updates come back.
 </Update>
 
 <Update label="August 13, 2026" description="@senderkit/sdk@0.15.0 / @senderkit/cli@0.10.0 — complete MCP safety-hint trio" tags={["SDK", "CLI", "MCP"]}>

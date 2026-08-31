@@ -10,6 +10,29 @@ so they don't collide with other servers in a multi-server setup.
 
 No MCP prompts or resources are exposed — tools only.
 
+## Structured results
+
+Every tool on the hosted server (`https://mcp.senderkit.com`) declares an
+MCP `outputSchema` — a JSON Schema for its result, visible in `tools/list` —
+and returns its result as `structuredContent` conforming to that schema. The
+same object is also serialized as JSON in the text `content`, so clients that
+predate structured results see exactly the same data. The advertised schemas
+set `additionalProperties: false`, so a result never carries fields beyond
+what its schema lists.
+
+The result shapes mirror the corresponding REST responses, minus internal
+identifiers: `senderkit_messages_list` / `senderkit_messages_get` return the
+public `publicId` (`msg_…`) — the id every other message tool takes — but
+not the database row id, the workspace id, or the provider-connection id
+that `GET /v1/messages` still includes, and inbound-domain DNS records carry
+`type`/`name`/`value`/`priority`/`purpose` only. The schemas are published
+as Zod shapes in `@senderkit/sdk/mcp` (`contextOutput`, `sendOutput`,
+`messagesListOutput`, …, one per tool) alongside the input shapes.
+
+The local stdio server bundled with the CLI returns the SDK client's shapes
+(unwrapped arrays for the list tools) and does not declare output schemas
+yet.
+
 ## Workspace
 
 ### `senderkit_context`
@@ -23,7 +46,8 @@ derived from the API key prefix for API-key connections (`sk_live_` /
 `sk_test_`), or from the workspace/mode you chose on the consent screen for
 OAuth connections.
 
-Returns `{ workspace: { id, slug, name }, mode: "live" | "test" }`.
+Returns `{ workspace: { id, slug, name }, mode: "live" | "test" }` — the
+only identifier here is the workspace's own id.
 
 ## Sending
 
@@ -275,7 +299,9 @@ Fetch a single message by ID.
 
 Use to inspect the full record for one send — its current status, the
 provider's response, and the timeline of events. Mirrors
-`GET /v1/messages/{id}`.
+`GET /v1/messages/{id}`, minus the internal identifiers (see
+[Structured results](#structured-results)); the message is keyed by its
+public `publicId`.
 
 <ParamField path="id" type="string" required>
   Public message id, e.g. `"msg_…"`.
