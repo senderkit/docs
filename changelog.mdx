@@ -48,6 +48,20 @@ This page tracks releases of SenderKit's developer libraries — the
     declare output schemas yet).
 </Update>
 
+<Update label="August 17, 2026" description="Mailgun: temporary delivery delays no longer marked as failed" tags={["Integration"]}>
+  ## Mailgun connections no longer strand messages on a temporary delay
+
+  A Mailgun connection could previously mark a message `failed` (and fire a
+  `message.failed` [webhook](/webhooks)) for what was actually a temporary
+  delivery delay — greylisting or a transient rejection the receiving mail
+  server was still going to retry. If Mailgun went on to deliver the message
+  anyway, that later delivery could no longer update the message's status, so
+  it stayed stuck at `failed` despite having arrived. Only a genuinely
+  permanent failure is now treated as terminal; a temporary delay leaves the
+  message in its prior status until a real `delivered` or `failed` outcome
+  arrives. No action is needed on your end.
+</Update>
+
 <Update label="August 14, 2026" description="Twilio: SMS delivery status now updates" tags={["Integration"]}>
   ## Twilio SMS delivery status tracking now works
 
@@ -62,7 +76,6 @@ This page tracks releases of SenderKit's developer libraries — the
   Service (Twilio signs it verbatim, so it must match character-for-character,
   including any trailing slash). Sends work the same either way — this field
   only affects whether status updates come back.
-
 </Update>
 
 <Update label="August 13, 2026" description="@senderkit/sdk@0.15.0 / @senderkit/cli@0.10.0 — complete MCP safety-hint trio" tags={["SDK", "CLI", "MCP"]}>
